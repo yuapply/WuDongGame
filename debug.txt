@@ -1,0 +1,13 @@
+C:\Users\Yu Yu\miniconda3\envs\ChatAI_py3.10\lib\site-packages\pygame\pkgdata.py:25: UserWarning: pkg_resources is deprecated as an API. See https:/
+/setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  from pkg_resources import resource_stream, resource_exists
+pygame 2.6.1 (SDL 2.28.4, Python 3.10.16)
+Hello from the pygame community. https://www.pygame.org/contribute.html
+Traceback (most recent call last):
+  File "D:\WuDongGame\main.py", line 681, in <module>
+    main()
+  File "D:\WuDongGame\main.py", line 478, in main
+    draw_obstacle(OBSTACLE_TURTLE, legend_x + 280, legend_y, 24, OBSTACLE_GLOW_COLORS[OBSTACLE_TURTLE])
+  File "D:\WuDongGame\main.py", line 283, in draw_obstacle
+    pygame.draw.ellipse(screen, tuple(max(0, c - 50) for c in color), (x + size//3, y + size//4, size//3, size//2), border_radius=8)
+TypeError: 'border_radius' is an invalid keyword argument for this function
