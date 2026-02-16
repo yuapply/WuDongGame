@@ -905,6 +905,10 @@ def main():
                         obstacles = []
                         score = 0
                         start_ticks = pygame.time.get_ticks()
+                        level_start_ticks = pygame.time.get_ticks()
+                        current_level = 1
+                        spawn_timer = 0
+                        current_speed = 0
                         speed_boost_timer = 0
                         speed_slow_timer = 0
                         shrink_timer = 0
@@ -918,6 +922,9 @@ def main():
                         last_obstacle_count = 0
                         shake_intensity = 0
                         game_over_timer = 0
+                        level_obstacles_passed = 0
+                        level_obstacles_destroyed = 0
+                        transition_start_ticks = 0
                         player_name = ""
                         game_state = PLAYING
 
