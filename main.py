@@ -53,26 +53,30 @@ OBSTACLE_BIRD = "bird"
 OBSTACLE_TURTLE = "turtle"
 OBSTACLE_MUSHROOM = "mushroom"
 OBSTACLE_MACHINEGUN = "machinegun"
+OBSTACLE_SHOTGUN = "shotgun"
 
 OBSTACLE_COLORS = {
-    OBSTACLE_SQUARE: (239, 68, 68),
-    OBSTACLE_BIRD: (59, 130, 246),
-    OBSTACLE_TURTLE: (16, 185, 129),
-    OBSTACLE_MUSHROOM: (34, 197, 94),
-    OBSTACLE_MACHINEGUN: (255, 100, 30),
+    OBSTACLE_SQUARE: (220, 38, 38),       # Hazard red-600
+    OBSTACLE_BIRD: (250, 204, 21),        # Speed Up yellow-400
+    OBSTACLE_TURTLE: (96, 165, 250),      # Slow Down blue-400
+    OBSTACLE_MUSHROOM: (239, 68, 68),     # Shrink red-500
+    OBSTACLE_MACHINEGUN: (234, 88, 12),   # Triple Shot orange-600
+    OBSTACLE_SHOTGUN: (168, 85, 247),     # Shotgun purple
 }
 
 OBSTACLE_GLOW_COLORS = {
-    OBSTACLE_SQUARE: (248, 113, 113),
-    OBSTACLE_BIRD: (96, 165, 250),
-    OBSTACLE_TURTLE: (52, 211, 153),
-    OBSTACLE_MUSHROOM: (74, 222, 128),
-    OBSTACLE_MACHINEGUN: (255, 160, 80),
+    OBSTACLE_SQUARE: (248, 113, 113),     # Hazard red glow
+    OBSTACLE_BIRD: (254, 240, 138),       # Speed Up yellow glow
+    OBSTACLE_TURTLE: (147, 197, 253),     # Slow Down blue glow
+    OBSTACLE_MUSHROOM: (252, 165, 165),   # Shrink red glow
+    OBSTACLE_MACHINEGUN: (253, 186, 116), # Triple Shot orange glow
+    OBSTACLE_SHOTGUN: (216, 180, 254),    # Shotgun purple glow
 }
 
 # Fonts
-font_title = pygame.font.Font(None, 64)
+font_title = pygame.font.Font(None, 48)
 font_header = pygame.font.Font(None, 36)
+font_menu_section = pygame.font.Font(None, 28)
 font_normal = pygame.font.Font(None, 28)
 font_small = pygame.font.Font(None, 22)
 font_popup = pygame.font.Font(None, 32)
@@ -340,13 +344,14 @@ def create_gradient_surface(width, height, top_color, bottom_color):
 
 
 class Button:
-    def __init__(self, x, y, width, height, text, color=PRIMARY_COLOR, hover_color=PRIMARY_HOVER, text_color=WHITE, radius=16):
+    def __init__(self, x, y, width, height, text, color=PRIMARY_COLOR, hover_color=PRIMARY_HOVER, text_color=WHITE, radius=16, font=None):
         self.rect = pygame.Rect(x, y, width, height)
         self.text = text
         self.color = color
         self.hover_color = hover_color
         self.text_color = text_color
         self.radius = radius
+        self.font = font or font_normal
         self.is_selected = False
         self.scale = 1.0
         self.target_scale = 1.0
@@ -384,7 +389,7 @@ class Button:
             pygame.draw.rect(glow_surf, (*color, 40), glow_surf.get_rect(), border_radius=self.radius + 4)
             surface.blit(glow_surf, (scaled_rect.x - 4, scaled_rect.y - 4))
 
-        text_surf = font_normal.render(self.text, True, self.text_color)
+        text_surf = self.font.render(self.text, True, self.text_color)
         text_rect = text_surf.get_rect(center=scaled_rect.center)
         surface.blit(text_surf, text_rect)
 
@@ -408,7 +413,7 @@ class SectionPanel:
         pygame.draw.rect(surface, (50, 60, 120), self.rect, 1, border_radius=20)
 
         if self.title:
-            title_surf = font_header.render(self.title, True, (160, 170, 220))
+            title_surf = font_menu_section.render(self.title, True, (160, 170, 220))
             surface.blit(title_surf, (self.rect.x + 20, self.rect.y + 12))
 
 
@@ -425,18 +430,7 @@ def draw_glow(surface, color, rect, radius=15, intensity=50):
 def draw_player(shape, color, x, y, size, glow_color=None, pulse=0, target_surface=None):
     surf = target_surface if target_surface is not None else screen
 
-    if glow_color and target_surface is None:
-        pulse_size = 3 + math.sin(pulse) * 2
-        glow_rect = pygame.Rect(x - pulse_size, y - pulse_size, size + pulse_size * 2, size + pulse_size * 2)
-        for i in range(4):
-            r = 12 + i * 5
-            alpha = max(5, 50 - i * 12)
-            gs = pygame.Surface((glow_rect.width + r * 2, glow_rect.height + r * 2), pygame.SRCALPHA)
-            if shape == "aeroplane":
-                pygame.draw.ellipse(gs, (*glow_color, alpha), gs.get_rect())
-            else:
-                pygame.draw.rect(gs, (*glow_color, alpha), gs.get_rect(), border_radius=r + 5)
-            surf.blit(gs, (glow_rect.x - r, glow_rect.y - r))
+    pass  # No outer container/glow for player
 
     cx = x + size // 2
     cy = y + size // 2
@@ -606,7 +600,8 @@ def draw_player(shape, color, x, y, size, glow_color=None, pulse=0, target_surfa
 def draw_obstacle(obstacle_type, x, y, size, glow_color=None, pulse=0, time_offset=0):
     color = OBSTACLE_COLORS[obstacle_type]
 
-    if glow_color:
+    # Only draw outer container/glow for OBSTACLE_SQUARE
+    if glow_color and obstacle_type == OBSTACLE_SQUARE:
         pulse_size = 2 + math.sin(pulse) * 1.5
         glow_rect = pygame.Rect(x - pulse_size, y - pulse_size, size + pulse_size * 2, size + pulse_size * 2)
         for i in range(3):
@@ -617,67 +612,201 @@ def draw_obstacle(obstacle_type, x, y, size, glow_color=None, pulse=0, time_offs
             screen.blit(gs, (glow_rect.x - r, glow_rect.y - r))
 
     if obstacle_type == OBSTACLE_SQUARE:
-        # Rotation animation - draw rotated square
-        angle = time_offset * 3 % 360
+        # HAZARD - Spiked Mine: rotating red circle with spikes
         cx, cy = x + size // 2, y + size // 2
-        half = size // 2
-        rad = math.radians(angle)
-        cos_a, sin_a = math.cos(rad), math.sin(rad)
-        corners = [(-half, -half), (half, -half), (half, half), (-half, half)]
-        rotated = [(cx + px * cos_a - py * sin_a, cy + px * sin_a + py * cos_a) for px, py in corners]
-        pygame.draw.polygon(screen, color, rotated)
-        # Inner spinning detail
-        inner_half = size // 4
-        inner_corners = [(-inner_half, -inner_half), (inner_half, -inner_half),
-                         (inner_half, inner_half), (-inner_half, inner_half)]
-        inner_rotated = [(cx + px * cos_a - py * sin_a, cy + px * sin_a + py * cos_a) for px, py in inner_corners]
-        pygame.draw.polygon(screen, tuple(max(0, c - 40) for c in color), inner_rotated)
+        angle = time_offset * 3 % 360
+        radius = size // 3
+        # Main circle body with dark border
+        pygame.draw.circle(screen, (130, 10, 10), (cx, cy), radius + 2)
+        pygame.draw.circle(screen, color, (cx, cy), radius)
+        # Spikes around the circle (8 directions)
+        for deg in range(0, 360, 45):
+            spike_rad = math.radians(deg + angle)
+            sx = cx + int(math.cos(spike_rad) * (radius + size // 6))
+            sy = cy + int(math.sin(spike_rad) * (radius + size // 6))
+            pygame.draw.circle(screen, (130, 10, 10), (sx, sy), max(2, size // 10))
+        # Pulsing center light
+        center_pulse = abs(math.sin(time_offset * 0.15))
+        center_r = max(2, int(size // 8 + center_pulse * 2))
+        pygame.draw.circle(screen, (255, 200, 200), (cx, cy), center_r)
+
     elif obstacle_type == OBSTACLE_BIRD:
-        # Wing flap animation
-        wing_offset = int(math.sin(time_offset * 0.3) * 6)
-        pygame.draw.ellipse(screen, color, (x, y + 5, size, size - 10))
-        # Left wing
-        wing_points_l = [(x + 5, y + size // 2), (x - 5, y + size // 2 - 8 + wing_offset), (x + size // 3, y + size // 2)]
-        pygame.draw.polygon(screen, tuple(min(255, c + 30) for c in color), wing_points_l)
-        # Right wing
-        wing_points_r = [(x + size - 5, y + size // 2), (x + size + 5, y + size // 2 - 8 + wing_offset), (x + size * 2 // 3, y + size // 2)]
-        pygame.draw.polygon(screen, tuple(min(255, c + 30) for c in color), wing_points_r)
-        # Eye
-        pygame.draw.circle(screen, (220, 220, 255), (x + size // 2 + 2, y + size // 2 - 2), 3)
-        pygame.draw.circle(screen, (20, 20, 20), (x + size // 2 + 2, y + size // 2 - 2), 1)
+        # SPEED UP - Lightning Bolt (drawn smaller within hitbox)
+        cx, cy = x + size // 2, y + size // 2
+        s = size / 55.0
+        bolt_color = (250, 204, 21)
+        bright_color = (254, 240, 138)
+        # Lightning bolt shape
+        points = [
+            (cx + int(1 * s), cy - int(18 * s)),
+            (cx - int(9 * s), cy + int(2 * s)),
+            (cx + int(0 * s), cy + int(2 * s)),
+            (cx - int(1 * s), cy + int(18 * s)),
+            (cx + int(9 * s), cy - int(2 * s)),
+            (cx + int(0 * s), cy - int(2 * s)),
+        ]
+        # Brightness pulse glow
+        brightness_pulse = abs(math.sin(time_offset * 0.2))
+        if brightness_pulse > 0.3:
+            glow_surf = pygame.Surface((size + 10, size + 10), pygame.SRCALPHA)
+            glow_alpha = int(brightness_pulse * 80)
+            pygame.draw.polygon(glow_surf, (*bolt_color, glow_alpha),
+                                [(p[0] - x + 5, p[1] - y + 5) for p in points])
+            screen.blit(glow_surf, (x - 5, y - 5))
+        pygame.draw.polygon(screen, bolt_color, points)
+        pygame.draw.polygon(screen, bright_color, points, max(1, int(s)))
+
     elif obstacle_type == OBSTACLE_TURTLE:
-        # Bobbing animation
-        bob = int(math.sin(time_offset * 0.15) * 3)
-        ty = y + bob
-        pygame.draw.ellipse(screen, color, (x + 2, ty, size - 4, size))
-        pygame.draw.ellipse(screen, tuple(max(0, c - 50) for c in color), (x + size // 3, ty + size // 4, size // 3, size // 2))
-        pygame.draw.circle(screen, (80, 200, 80), (x + size // 2, ty - 3), 6)
+        # SLOW DOWN - Cute cartoon turtle matching reference image
+        cx, cy = x + size // 2, y + size // 2
+        s = size / 40.0
+        bob = math.sin(time_offset * 0.05) * 2 * s
+
+        # --- Front legs (behind body) ---
+        leg_color = (120, 190, 120)
+        leg_outline = (60, 120, 60)
+        # Front-left leg
+        fl_x, fl_y = int(cx - 10 * s), int(cy + 8 * s + bob)
+        pygame.draw.ellipse(screen, leg_color, (fl_x, fl_y, int(8 * s), int(10 * s)))
+        pygame.draw.ellipse(screen, leg_outline, (fl_x, fl_y, int(8 * s), int(10 * s)), max(1, int(s)))
+        # Front-right leg
+        fr_x, fr_y = int(cx + 2 * s), int(cy + 8 * s + bob)
+        pygame.draw.ellipse(screen, leg_color, (fr_x, fr_y, int(8 * s), int(10 * s)))
+        pygame.draw.ellipse(screen, leg_outline, (fr_x, fr_y, int(8 * s), int(10 * s)), max(1, int(s)))
+        # Toes (small circles at bottom of each leg)
+        for lx in [fl_x, fr_x]:
+            for t in range(3):
+                tx = lx + int((1 + t * 3) * s)
+                ty = int(cy + 16 * s + bob)
+                pygame.draw.circle(screen, leg_color, (tx, ty), max(1, int(1.5 * s)))
+
+        # --- Shell (dome shape) ---
+        shell_color = (100, 180, 80)
+        shell_dark = (70, 140, 55)
+        shell_outline = (50, 100, 40)
+        shell_w, shell_h = int(26 * s), int(20 * s)
+        shell_x = int(cx - 13 * s)
+        shell_y = int(cy - 10 * s + bob)
+        # Main shell dome
+        pygame.draw.ellipse(screen, shell_color, (shell_x, shell_y, shell_w, shell_h))
+        pygame.draw.ellipse(screen, shell_outline, (shell_x, shell_y, shell_w, shell_h), max(1, int(1.5 * s)))
+        # Shell rim (bottom edge stripe)
+        rim_rect = (shell_x + int(2 * s), int(cy + 5 * s + bob), shell_w - int(4 * s), int(5 * s))
+        pygame.draw.ellipse(screen, shell_dark, rim_rect)
+        pygame.draw.ellipse(screen, shell_outline, rim_rect, max(1, int(s)))
+        # Shell pattern - hexagonal/pentagon shapes
+        # Center hexagon
+        hex_cx, hex_cy = int(cx), int(cy - 4 * s + bob)
+        hex_r = int(5 * s)
+        hex_pts = [(hex_cx + int(hex_r * math.cos(math.radians(60 * i - 30))),
+                     hex_cy + int(hex_r * 0.8 * math.sin(math.radians(60 * i - 30)))) for i in range(6)]
+        pygame.draw.polygon(screen, shell_dark, hex_pts, max(1, int(s)))
+        # Surrounding smaller shapes
+        for angle_deg in [0, 72, 144, 216, 288]:
+            px = hex_cx + int(7 * s * math.cos(math.radians(angle_deg)))
+            py = hex_cy + int(5 * s * math.sin(math.radians(angle_deg)))
+            mini_r = int(3 * s)
+            mini_pts = [(px + int(mini_r * math.cos(math.radians(72 * i))),
+                          py + int(mini_r * 0.7 * math.sin(math.radians(72 * i)))) for i in range(5)]
+            pygame.draw.polygon(screen, shell_dark, mini_pts, max(1, int(s)))
+
+        # --- Neck (with stripes, connecting head to shell) ---
+        neck_x = int(cx + 10 * s)
+        neck_y = int(cy - 2 * s + bob)
+        neck_w, neck_h = int(8 * s), int(10 * s)
+        pygame.draw.ellipse(screen, leg_color, (neck_x, neck_y, neck_w, neck_h))
+        pygame.draw.ellipse(screen, leg_outline, (neck_x, neck_y, neck_w, neck_h), max(1, int(s)))
+        # Neck stripes
+        for si in range(3):
+            sy = neck_y + int((2 + si * 3) * s)
+            pygame.draw.line(screen, shell_dark, (neck_x + int(1 * s), sy), (neck_x + neck_w - int(1 * s), sy), max(1, int(s)))
+
+        # --- Head (large, round, cute) ---
+        head_x = int(cx + 14 * s + bob)
+        head_y = int(cy - 8 * s + bob)
+        head_r = int(8 * s)
+        pygame.draw.circle(screen, leg_color, (head_x, head_y), head_r)
+        pygame.draw.circle(screen, leg_outline, (head_x, head_y), head_r, max(1, int(1.5 * s)))
+
+        # Eyes (big, expressive)
+        eye_r = max(2, int(3 * s))
+        pupil_r = max(1, int(1.5 * s))
+        # Left eye
+        le_x, le_y = int(head_x - 2 * s), int(head_y - 3 * s)
+        pygame.draw.circle(screen, (255, 255, 255), (le_x, le_y), eye_r)
+        pygame.draw.circle(screen, (30, 30, 30), (le_x + int(0.5 * s), le_y), pupil_r)
+        pygame.draw.circle(screen, (255, 255, 255), (le_x + int(1 * s), le_y - int(1 * s)), max(1, int(0.8 * s)))
+        pygame.draw.circle(screen, leg_outline, (le_x, le_y), eye_r, max(1, int(s)))
+        # Right eye
+        re_x, re_y = int(head_x + 4 * s), int(head_y - 3 * s)
+        pygame.draw.circle(screen, (255, 255, 255), (re_x, re_y), eye_r)
+        pygame.draw.circle(screen, (30, 30, 30), (re_x + int(0.5 * s), re_y), pupil_r)
+        pygame.draw.circle(screen, (255, 255, 255), (re_x + int(1 * s), re_y - int(1 * s)), max(1, int(0.8 * s)))
+        pygame.draw.circle(screen, leg_outline, (re_x, re_y), eye_r, max(1, int(s)))
+
+        # Smile (curved line)
+        smile_rect = pygame.Rect(int(head_x - 3 * s), int(head_y - 1 * s), int(8 * s), int(6 * s))
+        pygame.draw.arc(screen, (50, 80, 50), smile_rect, math.radians(200), math.radians(340), max(1, int(1.5 * s)))
+
     elif obstacle_type == OBSTACLE_MUSHROOM:
-        # Bounce animation
-        bounce = abs(int(math.sin(time_offset * 0.2) * 3))
-        my = y - bounce
-        pygame.draw.rect(screen, (200, 180, 140), (x + size // 3, my + size // 2, size // 3, size // 2 + bounce), border_radius=5)
-        pygame.draw.ellipse(screen, color, (x + 2, my, size - 4, size // 2 + 5))
-        pygame.draw.circle(screen, (240, 240, 240, 180), (x + size // 3, my + size // 4), 4)
-        pygame.draw.circle(screen, (240, 240, 240, 180), (x + size * 2 // 3, my + size // 4), 3)
+        # SHRINK - Mushroom: red cap with white dots, cream stem (drawn smaller)
+        inset = size // 5
+        mx = x + inset
+        ms = size - inset * 2
+        bounce = abs(int(math.sin(time_offset * 0.2) * 2))
+        my = y + inset - bounce
+        cap_h = ms // 2 + 2
+        stem_w = ms // 3
+        stem_h = ms // 3 + bounce
+        # Stem
+        stem_rect = pygame.Rect(mx + ms // 2 - stem_w // 2, my + cap_h - 2, stem_w, stem_h)
+        pygame.draw.rect(screen, (220, 215, 200), stem_rect, border_radius=3)
+        pygame.draw.rect(screen, (200, 200, 190), stem_rect, 2, border_radius=3)
+        # Red cap dome
+        cap_rect = pygame.Rect(mx + 1, my, ms - 2, cap_h)
+        pygame.draw.ellipse(screen, (220, 38, 38), cap_rect)
+        pygame.draw.ellipse(screen, (252, 165, 165), cap_rect, max(1, ms // 16))
+        # White dots on cap
+        pygame.draw.circle(screen, WHITE, (mx + ms // 3, my + cap_h // 3), max(2, ms // 10))
+        pygame.draw.circle(screen, WHITE, (mx + ms * 2 // 3, my + cap_h // 3 + 2), max(2, ms // 12))
+
     elif obstacle_type == OBSTACLE_MACHINEGUN:
-        # Gun body (rectangular)
-        body_rect = (x + size // 4, y + size // 3, size // 2, size // 2)
-        pygame.draw.rect(screen, color, body_rect, border_radius=3)
-        # Barrel extending upward
-        barrel_rect = (x + size // 2 - 3, y + 2, 6, size // 3)
-        pygame.draw.rect(screen, tuple(min(255, c + 30) for c in color), barrel_rect)
-        # Muzzle flash animation
-        flash_intensity = abs(math.sin(time_offset * 0.4))
-        if flash_intensity > 0.5:
-            flash_size = int(4 + flash_intensity * 4)
-            flash_surf = pygame.Surface((flash_size * 2, flash_size * 2), pygame.SRCALPHA)
-            flash_alpha = int(flash_intensity * 200)
-            pygame.draw.circle(flash_surf, (255, 200, 50, flash_alpha), (flash_size, flash_size), flash_size)
-            screen.blit(flash_surf, (x + size // 2 - flash_size, y + 2 - flash_size))
-        # Handle / grip
-        grip_rect = (x + size // 3, y + size * 3 // 4, size // 5, size // 4)
-        pygame.draw.rect(screen, tuple(max(0, c - 60) for c in color), grip_rect, border_radius=2)
+        # TRIPLE SHOT - Three bouncing bullet shapes
+        cx = x + size // 2
+        bullet_w = max(4, size // 6)
+        bullet_h = max(10, size * 2 // 5)
+        gap = bullet_w + 2
+        for i in range(3):
+            bx = cx - gap + i * gap - bullet_w // 2
+            bounce = int(math.sin(time_offset * 0.3 + i * 0.5) * 4)
+            by = y + size // 2 - bullet_h // 2 + bounce
+            bullet_rect = pygame.Rect(bx, by, bullet_w, bullet_h)
+            # Bullet body (orange)
+            pygame.draw.rect(screen, (234, 88, 12), bullet_rect, border_radius=bullet_w)
+            # Top highlight (yellow)
+            highlight_rect = pygame.Rect(bx, by, bullet_w, bullet_h // 2)
+            pygame.draw.rect(screen, (253, 224, 71), highlight_rect, border_radius=bullet_w)
+            # Border
+            pygame.draw.rect(screen, (254, 215, 170), bullet_rect, 1, border_radius=bullet_w)
+
+    elif obstacle_type == OBSTACLE_SHOTGUN:
+        # SHOTGUN - Same triple-bullet icon but in purple
+        cx = x + size // 2
+        bullet_w = max(4, size // 6)
+        bullet_h = max(10, size * 2 // 5)
+        gap = bullet_w + 2
+        for i in range(3):
+            bx = cx - gap + i * gap - bullet_w // 2
+            bounce = int(math.sin(time_offset * 0.3 + i * 0.5) * 4)
+            by = y + size // 2 - bullet_h // 2 + bounce
+            bullet_rect = pygame.Rect(bx, by, bullet_w, bullet_h)
+            # Bullet body (purple)
+            pygame.draw.rect(screen, (168, 85, 247), bullet_rect, border_radius=bullet_w)
+            # Top highlight (light purple)
+            highlight_rect = pygame.Rect(bx, by, bullet_w, bullet_h // 2)
+            pygame.draw.rect(screen, (216, 180, 254), highlight_rect, border_radius=bullet_w)
+            # Border
+            pygame.draw.rect(screen, (232, 210, 255), bullet_rect, 1, border_radius=bullet_w)
 
 
 def draw_speed_lines(surface, width, height, orientation, speed, time_offset):
@@ -702,13 +831,22 @@ def draw_speed_lines(surface, width, height, orientation, speed, time_offset):
     surface.blit(line_surf, (0, 0))
 
 
-def draw_boss(x, y, size, health, max_health, time_offset):
-    """Draw the big turtle boss with health indicator."""
-    boss_color = OBSTACLE_COLORS[OBSTACLE_TURTLE]
-    boss_glow = OBSTACLE_GLOW_COLORS[OBSTACLE_TURTLE]
-    
-    # Glow effect
-    pulse_size = 3 + math.sin(time_offset * 0.1) * 2
+def draw_boss(x, y, size, health, max_health, time_offset, level=1):
+    """Draws one of 10 unique bosses based on the current level."""
+    cx, cy = x + size // 2, y + size // 2
+    half = size // 2
+    s = size / 100.0
+    pulse = math.sin(time_offset * 0.1)
+
+    # Common glow effect
+    boss_glow_configs = {
+        1: (129, 140, 248), 2: (216, 180, 254), 3: (251, 146, 60),
+        4: (248, 113, 113), 5: (74, 222, 128), 6: (110, 231, 183),
+        7: (255, 255, 255), 8: (250, 204, 21), 9: (99, 102, 241),
+        10: (255, 250, 205),
+    }
+    boss_glow = boss_glow_configs.get(level, boss_glow_configs[1])
+    pulse_size = 3 + pulse * 2
     glow_rect = pygame.Rect(x - pulse_size, y - pulse_size, size + pulse_size * 2, size + pulse_size * 2)
     for i in range(4):
         r = 15 + i * 6
@@ -716,32 +854,143 @@ def draw_boss(x, y, size, health, max_health, time_offset):
         gs = pygame.Surface((glow_rect.width + r * 2, glow_rect.height + r * 2), pygame.SRCALPHA)
         pygame.draw.rect(gs, (*boss_glow, alpha), gs.get_rect(), border_radius=r + 5)
         screen.blit(gs, (glow_rect.x - r, glow_rect.y - r))
-    
-    # Main body (big ellipse)
-    body_rect = pygame.Rect(x + 5, y + 10, size - 10, size - 20)
-    pygame.draw.ellipse(screen, boss_color, body_rect)
-    
-    # Shell pattern
-    shell_color = tuple(max(0, c - 40) for c in boss_color)
-    pygame.draw.ellipse(screen, shell_color, (x + size // 4, y + size // 3, size // 2, size // 2))
-    
-    # Eyes (angry looking)
-    eye_size = size // 10
-    eye_offset = size // 4
-    pygame.draw.circle(screen, (255, 100, 100), (x + eye_offset, y + size // 4), eye_size)
-    pygame.draw.circle(screen, (255, 100, 100), (x + size - eye_offset, y + size // 4), eye_size)
-    # Pupils
-    pygame.draw.circle(screen, (50, 0, 0), (x + eye_offset, y + size // 4), eye_size // 2)
-    pygame.draw.circle(screen, (50, 0, 0), (x + size - eye_offset, y + size // 4), eye_size // 2)
-    
-    # Mouth
-    pygame.draw.arc(screen, (100, 50, 50), (x + size // 4, y + size // 2, size // 2, size // 4), 0, math.pi, 3)
+
+    if level == 1:
+        # ROBOT (Mecha-Sentinel)
+        color = (100, 150, 255)
+        pygame.draw.rect(screen, color, (x, y, size, size), border_radius=10)
+        # Visor
+        pygame.draw.rect(screen, (20, 20, 40), (int(x + 10 * s), int(y + 20 * s), int(80 * s), int(30 * s)))
+        # Pulsing red eyes
+        eye_color = (255, 0, 0) if pulse > 0 else (150, 0, 0)
+        pygame.draw.circle(screen, eye_color, (int(x + 30 * s), int(y + 35 * s)), int(8 * s))
+        pygame.draw.circle(screen, eye_color, (int(x + 70 * s), int(y + 35 * s)), int(8 * s))
+
+    elif level == 2:
+        # GHOST (Neon Phantom)
+        color = (200, 150, 255)
+        alpha = int(150 + pulse * 50)
+        ghost_surf = pygame.Surface((size, size), pygame.SRCALPHA)
+        pygame.draw.ellipse(ghost_surf, (*color, alpha), (0, 0, size, int(size * 0.8)))
+        # Wavy bottom
+        for i in range(3):
+            wx = i * (size // 3)
+            pygame.draw.circle(ghost_surf, (*color, alpha), (wx + size // 6, int(size * 0.8)), size // 6)
+        screen.blit(ghost_surf, (x, y))
+        # Dark hollow eyes
+        pygame.draw.circle(screen, (0, 0, 0), (int(cx - 15 * s), int(cy - 10 * s)), int(5 * s))
+        pygame.draw.circle(screen, (0, 0, 0), (int(cx + 15 * s), int(cy - 10 * s)), int(5 * s))
+
+    elif level == 3:
+        # TIGER (Cyber-Beast)
+        color = (255, 140, 0)
+        pygame.draw.circle(screen, color, (cx, cy), size // 2)
+        # Ears
+        pygame.draw.polygon(screen, color, [(x, int(y + 20 * s)), (int(x + 30 * s), y), (int(x + 40 * s), int(y + 30 * s))])
+        pygame.draw.polygon(screen, color, [(x + size, int(y + 20 * s)), (int(x + size - 30 * s), y), (int(x + size - 40 * s), int(y + 30 * s))])
+        # Black stripes
+        for i in range(3):
+            pygame.draw.line(screen, (0, 0, 0), (int(cx - 20 * s), int(y + 40 * s + i * 10 * s)),
+                             (int(cx + 20 * s), int(y + 40 * s + i * 10 * s)), 3)
+
+    elif level == 4:
+        # ALIEN (Insectoid Overlord)
+        color = (50, 255, 100)
+        # Long oval head
+        pygame.draw.ellipse(screen, color, (int(x + 20 * s), y, int(60 * s), size))
+        # Large black almond eyes
+        pygame.draw.ellipse(screen, (0, 0, 0), (int(x + 25 * s), int(y + 20 * s), int(20 * s), int(35 * s)))
+        pygame.draw.ellipse(screen, (0, 0, 0), (int(x + 55 * s), int(y + 20 * s), int(20 * s), int(35 * s)))
+        # Mandibles
+        pygame.draw.arc(screen, (200, 255, 200),
+                        pygame.Rect(int(cx - 20 * s), int(cy + 10 * s), int(40 * s), int(30 * s)),
+                        0, math.pi, 4)
+
+    elif level == 5:
+        # WITCH (Void Hag)
+        # Hat (triangle)
+        pygame.draw.polygon(screen, (40, 0, 80), [(cx, y), (x, y + size), (x + size, y + size)])
+        # Face
+        pygame.draw.circle(screen, (220, 180, 150), (cx, int(cy + 20 * s)), int(25 * s))
+        # Glowing green eyes
+        pygame.draw.circle(screen, (0, 255, 0), (int(cx - 10 * s), int(cy + 15 * s)), 4)
+        pygame.draw.circle(screen, (0, 255, 0), (int(cx + 10 * s), int(cy + 15 * s)), 4)
+
+    elif level == 6:
+        # EYE (The Watcher)
+        # White sclera
+        pygame.draw.ellipse(screen, (255, 255, 255), (x, int(y + 20 * s), size, int(60 * s)))
+        # Red iris (pulsing size)
+        iris_r = int(20 * s + pulse * 5 * s)
+        pygame.draw.circle(screen, (255, 0, 0), (cx, cy), iris_r)
+        # Black pupil
+        pygame.draw.circle(screen, (0, 0, 0), (cx, cy), iris_r // 2)
+
+    elif level == 7:
+        # SKULL (Plasma Lich)
+        # Cranium
+        pygame.draw.circle(screen, (240, 240, 240), (cx, int(cy - 10 * s)), int(40 * s))
+        # Jaw
+        pygame.draw.rect(screen, (240, 240, 240),
+                         (int(cx - 25 * s), int(cy + 20 * s), int(50 * s), int(25 * s)), border_radius=5)
+        # Blue fire eyes
+        pygame.draw.circle(screen, (0, 100, 255), (int(cx - 15 * s), int(cy)), int(10 * s))
+        pygame.draw.circle(screen, (0, 100, 255), (int(cx + 15 * s), int(cy)), int(10 * s))
+
+    elif level == 8:
+        # SLIME (Toxic Blob)
+        color = (150, 255, 0)
+        # Animated bubbles
+        for i in range(5):
+            bx = cx + math.cos(time_offset * 0.1 + i) * 30 * s
+            by = cy + math.sin(time_offset * 0.1 + i) * 20 * s
+            pygame.draw.circle(screen, color, (int(bx), int(by)), int(20 * s))
+        # Main body blob
+        pygame.draw.ellipse(screen, color, (int(x + 10 * s), int(y + 20 * s), int(80 * s), int(60 * s)))
+
+    elif level == 9:
+        # DRAGON (Ancient Wyrm)
+        color = (200, 30, 30)
+        # Diamond-shaped head
+        pygame.draw.polygon(screen, color, [(cx, y), (x, cy), (cx, y + size), (x + size, cy)])
+        # Golden horns
+        pygame.draw.line(screen, (255, 200, 100), (int(cx - 10 * s), int(y + 10 * s)), (x, int(y - 10 * s)), 5)
+        pygame.draw.line(screen, (255, 200, 100), (int(cx + 10 * s), int(y + 10 * s)), (x + size, int(y - 10 * s)), 5)
+        # Yellow slit eyes
+        pygame.draw.line(screen, (255, 255, 0), (int(cx - 15 * s), int(cy - 5 * s)), (int(cx - 5 * s), int(cy - 5 * s)), 3)
+        pygame.draw.line(screen, (255, 255, 0), (int(cx + 15 * s), int(cy - 5 * s)), (int(cx + 5 * s), int(cy - 5 * s)), 3)
+
+    elif level >= 10:
+        # THE CORE (Final God) - Rotating hexagon with pulsing center
+        angle = time_offset * 0.05
+        points = []
+        for i in range(6):
+            px = cx + math.cos(angle + i * math.pi / 3) * 50 * s
+            py = cy + math.sin(angle + i * math.pi / 3) * 50 * s
+            points.append((px, py))
+        pygame.draw.polygon(screen, (255, 215, 0), points, 3)
+        # Pulsing white core
+        pygame.draw.circle(screen, (255, 255, 255), (cx, cy), int(15 * s + pulse * 10 * s))
 
 
-def draw_boss_projectile(x, y, size, time_offset):
+def draw_boss_projectile(x, y, size, time_offset, level=1):
     """Draw boss projectile (circle block)."""
-    color = OBSTACLE_COLORS[OBSTACLE_TURTLE]
-    glow_color = OBSTACLE_GLOW_COLORS[OBSTACLE_TURTLE]
+    boss_configs = {
+        1: {"color": (100, 150, 255), "glow": (129, 140, 248)},
+        2: {"color": (200, 150, 255), "glow": (216, 180, 254)},
+        3: {"color": (255, 140, 0), "glow": (251, 146, 60)},
+        4: {"color": (50, 255, 100), "glow": (100, 255, 150)},
+        5: {"color": (40, 0, 80), "glow": (100, 50, 150)},
+        6: {"color": (255, 0, 0), "glow": (248, 113, 113)},
+        7: {"color": (0, 100, 255), "glow": (100, 180, 255)},
+        8: {"color": (150, 255, 0), "glow": (200, 255, 100)},
+        9: {"color": (200, 30, 30), "glow": (255, 100, 100)},
+        10: {"color": (255, 215, 0), "glow": (255, 250, 205)},
+    }
+    
+    config = boss_configs.get(level, boss_configs[1])
+    color = config["color"]
+    glow_color = config["glow"]
     
     # Glow
     pulse = 2 + math.sin(time_offset * 0.2) * 1
@@ -757,8 +1006,25 @@ def draw_boss_projectile(x, y, size, time_offset):
     pygame.draw.circle(screen, inner_color, (x + size // 2, y + size // 2), size // 3)
 
 
-def draw_boss_health_bar(x, y, width, height, health, max_health):
+def draw_boss_health_bar(x, y, width, height, health, max_health, level=1):
     """Draw boss health bar."""
+    boss_configs = {
+        1: {"name": "MECHA-SENTINEL", "color": (100, 150, 255)},
+        2: {"name": "NEON PHANTOM", "color": (200, 150, 255)},
+        3: {"name": "CYBER-BEAST", "color": (255, 140, 0)},
+        4: {"name": "INSECTOID", "color": (50, 255, 100)},
+        5: {"name": "VOID HAG", "color": (40, 0, 80)},
+        6: {"name": "THE WATCHER", "color": (255, 0, 0)},
+        7: {"name": "PLASMA LICH", "color": (0, 100, 255)},
+        8: {"name": "TOXIC BLOB", "color": (150, 255, 0)},
+        9: {"name": "ANCIENT WYRM", "color": (200, 30, 30)},
+        10: {"name": "THE CORE", "color": (255, 215, 0)},
+    }
+    
+    config = boss_configs.get(level, boss_configs[1])
+    boss_name = config["name"]
+    boss_color = config["color"]
+    
     # Background
     bg_rect = pygame.Rect(x, y, width, height)
     bg_surface = pygame.Surface((width, height), pygame.SRCALPHA)
@@ -766,7 +1032,7 @@ def draw_boss_health_bar(x, y, width, height, health, max_health):
     screen.blit(bg_surface, (x, y))
     
     # Border
-    pygame.draw.rect(screen, (100, 50, 150), bg_rect, 2, border_radius=10)
+    pygame.draw.rect(screen, boss_color, bg_rect, 2, border_radius=10)
     
     # Health fill
     health_width = int((health / max_health) * (width - 8))
@@ -782,7 +1048,7 @@ def draw_boss_health_bar(x, y, width, height, health, max_health):
         pygame.draw.rect(screen, health_color, fill_rect, border_radius=6)
     
     # Boss label
-    boss_text = font_small.render("BOSS", True, (200, 200, 255))
+    boss_text = font_small.render(f"LVL {level}: {boss_name}", True, boss_color)
     screen.blit(boss_text, (x + 10, y + 7))
     
     # Health text
@@ -832,8 +1098,8 @@ def main():
 
     player_x = WIDTH // 2
     player_y = HEIGHT - 100
-    player_size = 40
-    original_player_size = 40
+    player_size = 30
+    original_player_size = 30
     obstacles = []
     obstacle_size = 40
     spawn_timer = 0
@@ -844,7 +1110,7 @@ def main():
     spawn_interval = 0
     current_level = 1
     level_start_ticks = 0
-    LEVEL_DURATION = 60000
+    LEVEL_DURATION = 45000
     
     # Level transition stats
     level_obstacles_passed = 0
@@ -857,12 +1123,13 @@ def main():
 
     speed_boost_timer = 0
     speed_slow_timer = 0
-    shrink_timer = 0
     BOOST_DURATION = 5000
     SLOW_DURATION = 5000
-    SHRINK_DURATION = 10000
     machinegun_timer = 0
     MACHINEGUN_DURATION = 10000
+    shotgun_timer = 0
+    SHOTGUN_DURATION = 10000
+    shotgun_cooldown = 0
     bullets = []
     bullet_cooldown = 0
 
@@ -898,16 +1165,21 @@ def main():
     last_obstacle_count = 0
 
     # Boss state
-    BOSS_TRIGGER_TIME = 60000
+    BOSS_TRIGGER_TIME = 45000
     boss_active = False
     boss_health = 0
-    boss_max_health = 200
+    boss_max_health = 200 + (current_level - 1) * 50
     boss_size = 120
     boss_x = 0
     boss_y = 0
     boss_projectiles = []
     boss_attack_timer = 0
     boss_attack_interval = 15
+    boss_pattern_timer = 0
+    boss_current_pattern = 0
+    
+    # Boss attack patterns
+    BOSS_PATTERNS = ["tight_spread", "wide_spread", "random_scatter", "line"]
 
     difficulty_settings = {
         1: {"blocks": 1, "base_speed": 3, "spawn_rate": 60, "name": "Easy"},
@@ -915,7 +1187,7 @@ def main():
         3: {"blocks": 3, "base_speed": 5, "spawn_rate": 40, "name": "Hard"}
     }
 
-    obstacle_weights = [60, 12, 12, 16, 10]
+    obstacle_weights = [60, 12, 12, 10, 6]
 
     orient_buttons = [
         Button(60, 135, WIDTH // 2 - 80, 35, "Vertical", PRIMARY_COLOR, PRIMARY_HOVER, WHITE, 12),
@@ -929,9 +1201,9 @@ def main():
     ]
 
     role_buttons = [
-        Button(55, 370, 90, 50, "Ship", PRIMARY_COLOR, PRIMARY_HOVER, WHITE, 12),
-        Button(165, 370, 90, 50, "Plane", SUCCESS_COLOR, (52, 211, 153), WHITE, 12),
-        Button(275, 370, 90, 50, "Dragon", WARNING_COLOR, (251, 191, 36), WHITE, 12)
+        Button(65, 370, 75, 40, "Ship", PRIMARY_COLOR, PRIMARY_HOVER, WHITE, 10, font_small),
+        Button(170, 370, 75, 40, "Plane", SUCCESS_COLOR, (52, 211, 153), WHITE, 10, font_small),
+        Button(275, 370, 75, 40, "Dragon", WARNING_COLOR, (251, 191, 36), WHITE, 10, font_small)
     ]
 
     start_button = Button(WIDTH // 2 - 100, 460, 200, 55, "PLAY", PRIMARY_COLOR, PRIMARY_HOVER, WHITE, 18)
@@ -1012,8 +1284,10 @@ def main():
                         current_speed = 0
                         speed_boost_timer = 0
                         speed_slow_timer = 0
-                        shrink_timer = 0
+
                         machinegun_timer = 0
+                        shotgun_timer = 0
+                        shotgun_cooldown = 0
                         bullets = []
                         bullet_cooldown = 0
                         player_size = original_player_size
@@ -1031,6 +1305,8 @@ def main():
                         boss_health = 0
                         boss_projectiles = []
                         boss_attack_timer = 0
+                        boss_pattern_timer = 0
+                        boss_current_pattern = 0
                         game_state = PLAYING
 
                     if scores_menu_button.is_clicked():
@@ -1055,8 +1331,10 @@ def main():
                         current_speed = 0
                         speed_boost_timer = 0
                         speed_slow_timer = 0
-                        shrink_timer = 0
+
                         machinegun_timer = 0
+                        shotgun_timer = 0
+                        shotgun_cooldown = 0
                         bullets = []
                         bullet_cooldown = 0
                         player_size = original_player_size
@@ -1074,6 +1352,8 @@ def main():
                         boss_health = 0
                         boss_projectiles = []
                         boss_attack_timer = 0
+                        boss_pattern_timer = 0
+                        boss_current_pattern = 0
                         game_state = PLAYING
                     elif menu_button.is_clicked():
                         reset_screen("vertical")
@@ -1140,8 +1420,10 @@ def main():
                             current_speed = 0
                             speed_boost_timer = 0
                             speed_slow_timer = 0
-                            shrink_timer = 0
+    
                             machinegun_timer = 0
+                            shotgun_timer = 0
+                            shotgun_cooldown = 0
                             bullets = []
                             bullet_cooldown = 0
                             player_size = original_player_size
@@ -1155,11 +1437,13 @@ def main():
                             level_obstacles_destroyed = 0
                             transition_start_ticks = 0
                             player_name = ""
-                            boss_active = False
-                            boss_health = 0
-                            boss_projectiles = []
-                            boss_attack_timer = 0
-                            game_state = PLAYING
+                        boss_active = False
+                        boss_health = 0
+                        boss_projectiles = []
+                        boss_attack_timer = 0
+                        boss_pattern_timer = 0
+                        boss_current_pattern = 0
+                        game_state = PLAYING
 
             if event.type == pygame.KEYDOWN and game_state == ENTER_NAME:
                 if event.key == pygame.K_RETURN:
@@ -1208,7 +1492,7 @@ def main():
 
             orient_panel = SectionPanel(30, 100, WIDTH - 60, 80, "Orientation")
             diff_panel = SectionPanel(30, 205, WIDTH - 60, 100, "Difficulty")
-            role_panel = SectionPanel(30, 330, WIDTH - 60, 110, "Player")
+            role_panel = SectionPanel(30, 330, WIDTH - 60, 95, "Player")
 
             orient_panel.draw(screen)
             diff_panel.draw(screen)
@@ -1228,8 +1512,8 @@ def main():
                 btn.is_selected = (selected_role == roles[i])
                 btn.draw(screen)
                 # Draw small role preview icon inside each button (left side)
-                preview_size = 20
-                preview_x = btn.rect.x + 4
+                preview_size = 16
+                preview_x = btn.rect.x + 3
                 preview_y = btn.rect.centery - preview_size // 2
                 draw_player(roles[i], role_colors_list[i], preview_x, preview_y,
                             preview_size, pulse=time_offset * 0.15)
@@ -1249,17 +1533,15 @@ def main():
             legend_text3 = font_small.render("= Slow", True, (52, 211, 153))
             screen.blit(legend_text3, (legend_x + 310, legend_y + 3))
 
-            # Only show mushroom if wide enough
-            if WIDTH > 450:
-                draw_obstacle(OBSTACLE_MUSHROOM, legend_x + 390, legend_y, 24, OBSTACLE_GLOW_COLORS[OBSTACLE_MUSHROOM], time_offset=time_offset)
-                legend_text4 = font_small.render("= Shrink", True, (74, 222, 128))
-                screen.blit(legend_text4, (legend_x + 420, legend_y + 3))
-
-            # Gun legend on second row
+            # Gun legend
             legend_y2 = legend_y + 30
             draw_obstacle(OBSTACLE_MACHINEGUN, legend_x, legend_y2, 24, OBSTACLE_GLOW_COLORS[OBSTACLE_MACHINEGUN], time_offset=time_offset)
             legend_text5 = font_small.render("= Gun", True, (255, 160, 80))
             screen.blit(legend_text5, (legend_x + 30, legend_y2 + 3))
+
+            draw_obstacle(OBSTACLE_SHOTGUN, legend_x + 140, legend_y2, 24, OBSTACLE_GLOW_COLORS[OBSTACLE_SHOTGUN], time_offset=time_offset)
+            legend_text6 = font_small.render("= Shotgun", True, (168, 85, 247))
+            screen.blit(legend_text6, (legend_x + 170, legend_y2 + 3))
 
             if selected_orientation == "vertical":
                 control_hint = font_small.render("Controls: < > to move", True, (120, 140, 180))
@@ -1281,9 +1563,12 @@ def main():
             # Boss trigger logic
             if not boss_active and level_elapsed >= BOSS_TRIGGER_TIME:
                 boss_active = True
+                boss_max_health = 200 + (current_level - 1) * 50
                 boss_health = boss_max_health
                 boss_projectiles = []
                 boss_attack_timer = 0
+                boss_pattern_timer = 0
+                boss_current_pattern = 0
                 if selected_orientation == "vertical":
                     boss_x = (WIDTH - boss_size) // 2
                     boss_y = 120
@@ -1313,11 +1598,7 @@ def main():
             else:
                 current_speed = base_speed
 
-            if shrink_timer > 0:
-                shrink_timer -= clock.get_time()
-                player_size = original_player_size * 0.6
-            else:
-                player_size = original_player_size
+            player_size = original_player_size
 
             spawn_interval = max(20, settings["spawn_rate"] - int(elapsed_seconds))
 
@@ -1335,29 +1616,64 @@ def main():
                     if boss_active:
                         # Boss mode: spawn projectiles and occasional machinegun
                         boss_attack_timer += 1
+                        boss_pattern_timer += 1
+                        
+                        # Change pattern periodically
+                        if boss_pattern_timer >= 300:
+                            boss_pattern_timer = 0
+                            boss_current_pattern = random.randint(0, len(BOSS_PATTERNS) - 1)
+                        
                         if boss_attack_timer >= boss_attack_interval:
                             boss_attack_timer = 0
-                            # Spawn multiple boss projectiles
                             proj_size = 25
-                            # Spawn 3 projectiles spread out
-                            offsets = [-40, 0, 40]
-                            for offset in offsets:
-                                boss_projectiles.append([boss_x + boss_size // 2 - proj_size // 2 + offset, boss_y + boss_size, proj_size, 4])
+                            pattern = BOSS_PATTERNS[boss_current_pattern]
+                            
+                            if pattern == "tight_spread":
+                                # 3 projectiles with tight spread
+                                offsets = [-40, 0, 40]
+                                for offset in offsets:
+                                    boss_projectiles.append([boss_x + boss_size // 2 - proj_size // 2 + offset, boss_y + boss_size, proj_size, 4])
+                            
+                            elif pattern == "wide_spread":
+                                # 3 projectiles with wider gaps
+                                offsets = [-100, 0, 100]
+                                for offset in offsets:
+                                    boss_projectiles.append([boss_x + boss_size // 2 - proj_size // 2 + offset, boss_y + boss_size, proj_size, 4])
+                            
+                            elif pattern == "random_scatter":
+                                # 5 random projectiles scattered
+                                for _ in range(5):
+                                    offset = random.randint(-120, 120)
+                                    speed = random.uniform(3, 6)
+                                    boss_projectiles.append([boss_x + boss_size // 2 - proj_size // 2 + offset, boss_y + boss_size, proj_size, speed])
+                            
+                            elif pattern == "line":
+                                # 5 projectiles in a vertical line with slight spacing delay
+                                for i in range(5):
+                                    boss_projectiles.append([boss_x + boss_size // 2 - proj_size // 2, boss_y + boss_size + i * 20, proj_size, 5])
                         
-                        # Occasionally spawn machinegun power-up
+                        # Occasionally spawn gun power-ups
                         if random.random() < 0.1:
                             mg_x = random.randint(0, WIDTH - obstacle_size)
-                            obstacles.append([mg_x, -obstacle_size, OBSTACLE_MACHINEGUN])
+                            gun_type = random.choice([OBSTACLE_MACHINEGUN, OBSTACLE_SHOTGUN])
+                            obstacles.append([mg_x, -obstacle_size, gun_type, obstacle_size])
                     else:
                         # Normal mode
                         for _ in range(settings["blocks"]):
-                            obstacle_x = random.randint(0, WIDTH - obstacle_size)
-                            obs_type = random.choices([OBSTACLE_SQUARE, OBSTACLE_BIRD, OBSTACLE_TURTLE, OBSTACLE_MUSHROOM, OBSTACLE_MACHINEGUN], weights=obstacle_weights)[0]
-                            obstacles.append([obstacle_x, -obstacle_size, obs_type])
+                            obs_type = random.choices([OBSTACLE_SQUARE, OBSTACLE_BIRD, OBSTACLE_TURTLE, OBSTACLE_MACHINEGUN, OBSTACLE_SHOTGUN], weights=obstacle_weights)[0]
+                            if obs_type == OBSTACLE_SQUARE:
+                                obs_sz = random.choice([30, 40, 50, 60])
+                            else:
+                                obs_sz = obstacle_size
+                            obstacle_x = random.randint(0, WIDTH - obs_sz)
+                            obstacles.append([obstacle_x, -obs_sz, obs_type, obs_sz])
 
                 prev_count = len(obstacles)
                 for obstacle in obstacles:
-                    obstacle[1] += current_speed
+                    obs_speed = current_speed
+                    if boss_active and obstacle[2] in (OBSTACLE_MACHINEGUN, OBSTACLE_SHOTGUN):
+                        obs_speed = settings["base_speed"]
+                    obstacle[1] += obs_speed
 
                 obstacles = [obs for obs in obstacles if obs[1] < HEIGHT]
                 passed = prev_count - len(obstacles)
@@ -1384,29 +1700,64 @@ def main():
                     if boss_active:
                         # Boss mode: spawn projectiles and occasional machinegun
                         boss_attack_timer += 1
+                        boss_pattern_timer += 1
+                        
+                        # Change pattern periodically
+                        if boss_pattern_timer >= 300:
+                            boss_pattern_timer = 0
+                            boss_current_pattern = random.randint(0, len(BOSS_PATTERNS) - 1)
+                        
                         if boss_attack_timer >= boss_attack_interval:
                             boss_attack_timer = 0
-                            # Spawn multiple boss projectiles
                             proj_size = 25
-                            # Spawn 3 projectiles spread out
-                            offsets = [-40, 0, 40]
-                            for offset in offsets:
-                                boss_projectiles.append([boss_x - proj_size, boss_y + boss_size // 2 - proj_size // 2 + offset, proj_size, 4])
+                            pattern = BOSS_PATTERNS[boss_current_pattern]
+                            
+                            if pattern == "tight_spread":
+                                # 3 projectiles with tight spread
+                                offsets = [-40, 0, 40]
+                                for offset in offsets:
+                                    boss_projectiles.append([boss_x - proj_size, boss_y + boss_size // 2 - proj_size // 2 + offset, proj_size, 4])
+                            
+                            elif pattern == "wide_spread":
+                                # 3 projectiles with wider gaps
+                                offsets = [-100, 0, 100]
+                                for offset in offsets:
+                                    boss_projectiles.append([boss_x - proj_size, boss_y + boss_size // 2 - proj_size // 2 + offset, proj_size, 4])
+                            
+                            elif pattern == "random_scatter":
+                                # 5 random projectiles scattered
+                                for _ in range(5):
+                                    offset = random.randint(-120, 120)
+                                    speed = random.uniform(3, 6)
+                                    boss_projectiles.append([boss_x - proj_size, boss_y + boss_size // 2 - proj_size // 2 + offset, proj_size, speed])
+                            
+                            elif pattern == "line":
+                                # 5 projectiles in a horizontal line with slight spacing delay
+                                for i in range(5):
+                                    boss_projectiles.append([boss_x - proj_size - i * 20, boss_y + boss_size // 2 - proj_size // 2, proj_size, 5])
                         
-                        # Occasionally spawn machinegun power-up
+                        # Occasionally spawn gun power-ups
                         if random.random() < 0.1:
                             mg_y = random.randint(0, HEIGHT - obstacle_size)
-                            obstacles.append([WIDTH, mg_y, OBSTACLE_MACHINEGUN])
+                            gun_type = random.choice([OBSTACLE_MACHINEGUN, OBSTACLE_SHOTGUN])
+                            obstacles.append([WIDTH, mg_y, gun_type, obstacle_size])
                     else:
                         # Normal mode
                         for _ in range(settings["blocks"]):
-                            obstacle_y = random.randint(0, HEIGHT - obstacle_size)
-                            obs_type = random.choices([OBSTACLE_SQUARE, OBSTACLE_BIRD, OBSTACLE_TURTLE, OBSTACLE_MUSHROOM, OBSTACLE_MACHINEGUN], weights=obstacle_weights)[0]
-                            obstacles.append([WIDTH, obstacle_y, obs_type])
+                            obs_type = random.choices([OBSTACLE_SQUARE, OBSTACLE_BIRD, OBSTACLE_TURTLE, OBSTACLE_MACHINEGUN, OBSTACLE_SHOTGUN], weights=obstacle_weights)[0]
+                            if obs_type == OBSTACLE_SQUARE:
+                                obs_sz = random.choice([30, 40, 50, 60])
+                            else:
+                                obs_sz = obstacle_size
+                            obstacle_y = random.randint(0, HEIGHT - obs_sz)
+                            obstacles.append([WIDTH, obstacle_y, obs_type, obs_sz])
 
                 prev_count = len(obstacles)
                 for obstacle in obstacles:
-                    obstacle[0] -= current_speed
+                    obs_speed = current_speed
+                    if boss_active and obstacle[2] in (OBSTACLE_MACHINEGUN, OBSTACLE_SHOTGUN):
+                        obs_speed = settings["base_speed"]
+                    obstacle[0] -= obs_speed
 
                 obstacles = [obs for obs in obstacles if obs[0] > -obstacle_size]
                 passed = prev_count - len(obstacles)
@@ -1431,7 +1782,14 @@ def main():
 
             for obstacle in obstacles[:]:
                 obs_type = obstacle[2]
-                enemy_rect = pygame.Rect(obstacle[0], obstacle[1], obstacle_size, obstacle_size)
+                obs_sz = obstacle[3]
+                # Smaller hitbox for speed up (keep icon full size)
+                if obs_type == OBSTACLE_BIRD:
+                    hitbox_inset = obs_sz // 4
+                    enemy_rect = pygame.Rect(obstacle[0] + hitbox_inset, obstacle[1] + hitbox_inset,
+                                             obs_sz - hitbox_inset * 2, obs_sz - hitbox_inset * 2)
+                else:
+                    enemy_rect = pygame.Rect(obstacle[0], obstacle[1], obs_sz, obs_sz)
 
                 if player_rect.colliderect(enemy_rect):
                     center_x = enemy_rect.centerx
@@ -1454,13 +1812,15 @@ def main():
                         speed_slow_timer = SLOW_DURATION
                         speed_boost_timer = 0
                         obstacles.remove(obstacle)
-                    elif obs_type == OBSTACLE_MUSHROOM:
-                        particle_system.emit(center_x, center_y, (34, 197, 94), count=15, size=6, glow=True, spread=4)
-                        shrink_timer = SHRINK_DURATION
-                        obstacles.remove(obstacle)
                     elif obs_type == OBSTACLE_MACHINEGUN:
                         particle_system.emit(center_x, center_y, (255, 100, 30), count=15, size=6, glow=True, spread=4)
                         machinegun_timer = MACHINEGUN_DURATION
+                        shotgun_timer = 0
+                        obstacles.remove(obstacle)
+                    elif obs_type == OBSTACLE_SHOTGUN:
+                        particle_system.emit(center_x, center_y, (168, 85, 247), count=15, size=6, glow=True, spread=4)
+                        shotgun_timer = SHOTGUN_DURATION
+                        machinegun_timer = 0
                         obstacles.remove(obstacle)
 
             # Boss projectile collision with player
@@ -1483,19 +1843,38 @@ def main():
                     bullet_cooldown = 150
                     bcx = player_x + size_offset + player_size // 2
                     bcy = player_y + size_offset + player_size // 2
-                    bullets.append([bcx, bcy])
+                    if selected_orientation == "vertical":
+                        bullets.append([bcx, bcy, 0, -10])
+                    else:
+                        bullets.append([bcx, bcy, 10, 0])
+
+            # --- Shotgun bullet logic ---
+            if shotgun_timer > 0:
+                shotgun_timer -= dt
+                shotgun_cooldown -= dt
+                if shotgun_cooldown <= 0:
+                    shotgun_cooldown = 250
+                    bcx = player_x + size_offset + player_size // 2
+                    bcy = player_y + size_offset + player_size // 2
+                    speed = 10
+                    for angle_deg in [-30, -15, 0, 15, 30]:
+                        if selected_orientation == "vertical":
+                            angle_rad = math.radians(angle_deg)
+                            vx = speed * math.sin(angle_rad)
+                            vy = -speed * math.cos(angle_rad)
+                        else:
+                            angle_rad = math.radians(angle_deg)
+                            vx = speed * math.cos(angle_rad)
+                            vy = speed * math.sin(angle_rad)
+                        bullets.append([bcx, bcy, vx, vy])
 
             # Update bullets
             bullets_to_remove = []
             for b in bullets:
-                if selected_orientation == "vertical":
-                    b[1] -= 10
-                    if b[1] < -10:
-                        bullets_to_remove.append(b)
-                else:
-                    b[0] += 10
-                    if b[0] > WIDTH + 10:
-                        bullets_to_remove.append(b)
+                b[0] += b[2]
+                b[1] += b[3]
+                if b[1] < -10 or b[1] > HEIGHT + 10 or b[0] < -10 or b[0] > WIDTH + 10:
+                    bullets_to_remove.append(b)
             for b in bullets_to_remove:
                 if b in bullets:
                     bullets.remove(b)
@@ -1508,7 +1887,7 @@ def main():
                     if obs in obs_hit:
                         continue
                     if obs[2] == OBSTACLE_SQUARE:
-                        obs_rect = pygame.Rect(obs[0], obs[1], obstacle_size, obstacle_size)
+                        obs_rect = pygame.Rect(obs[0], obs[1], obs[3], obs[3])
                         bullet_rect = pygame.Rect(b[0] - 4, b[1] - 4, 8, 8)
                         if bullet_rect.colliderect(obs_rect):
                             bullets_hit.append(b)
@@ -1521,6 +1900,19 @@ def main():
                             shake_intensity = max(shake_intensity, 3.0)
                             break
             
+            # Bullet vs boss projectile collision
+            if boss_active:
+                for b in bullets[:]:
+                    bullet_rect = pygame.Rect(b[0] - 4, b[1] - 4, 8, 8)
+                    for proj in boss_projectiles[:]:
+                        proj_rect = pygame.Rect(proj[0], proj[1], proj[2], proj[2])
+                        if bullet_rect.colliderect(proj_rect):
+                            if b in bullets:
+                                bullets.remove(b)
+                            boss_projectiles.remove(proj)
+                            particle_system.emit(proj_rect.centerx, proj_rect.centery, (255, 200, 100), count=10, size=4, glow=True, spread=3)
+                            break
+
             # Bullet vs boss collision
             if boss_active:
                 boss_rect = pygame.Rect(boss_x, boss_y, boss_size, boss_size)
@@ -1531,7 +1923,23 @@ def main():
                         boss_health -= 1
                         cx_hit = bullet_rect.centerx
                         cy_hit = bullet_rect.centery
-                        particle_system.emit(cx_hit, cy_hit, (200, 100, 200), count=8, size=4, glow=True, spread=3)
+                        
+                        # Get boss color for particles
+                        boss_configs = {
+                            1: (100, 150, 255),
+                            2: (200, 150, 255),
+                            3: (255, 140, 0),
+                            4: (50, 255, 100),
+                            5: (40, 0, 80),
+                            6: (255, 0, 0),
+                            7: (0, 100, 255),
+                            8: (150, 255, 0),
+                            9: (200, 30, 30),
+                            10: (255, 215, 0),
+                        }
+                        boss_color = boss_configs.get(current_level, boss_configs[1])
+                        
+                        particle_system.emit(cx_hit, cy_hit, boss_color, count=8, size=4, glow=True, spread=3)
                         shake_intensity = max(shake_intensity, 2.0)
             
             for b in bullets_hit:
@@ -1551,7 +1959,7 @@ def main():
                 glow_surf = pygame.Surface((24, 24), pygame.SRCALPHA)
                 pygame.draw.circle(glow_surf, (0, 150, 255, 100), (12, 12), 12)
                 screen.blit(glow_surf, (bx - 12, by - 12))
-                
+
                 # Inner bright core
                 core_surf = pygame.Surface((16, 16), pygame.SRCALPHA)
                 pygame.draw.circle(core_surf, (100, 200, 255, 200), (8, 8), 6)
@@ -1567,14 +1975,14 @@ def main():
             draw_player(selected_role, PLAYER_COLORS[selected_role], int(player_x + size_offset + shake_offset_x), int(player_y + size_offset + shake_offset_y), int(player_size), PLAYER_GLOW_COLORS[selected_role], time_offset * 0.15)
 
             for obstacle in obstacles:
-                draw_obstacle(obstacle[2], int(obstacle[0] + shake_offset_x), int(obstacle[1] + shake_offset_y), obstacle_size, OBSTACLE_GLOW_COLORS[obstacle[2]], time_offset * 0.1, time_offset)
+                draw_obstacle(obstacle[2], int(obstacle[0] + shake_offset_x), int(obstacle[1] + shake_offset_y), obstacle[3], OBSTACLE_GLOW_COLORS[obstacle[2]], time_offset * 0.1, time_offset)
 
             # Draw boss and boss projectiles if active
             if boss_active:
-                draw_boss(boss_x + shake_offset_x, boss_y + shake_offset_y, boss_size, boss_health, boss_max_health, time_offset)
+                draw_boss(boss_x + shake_offset_x, boss_y + shake_offset_y, boss_size, boss_health, boss_max_health, time_offset, current_level)
                 for proj in boss_projectiles:
-                    draw_boss_projectile(int(proj[0] + shake_offset_x), int(proj[1] + shake_offset_y), proj[2], time_offset)
-                draw_boss_health_bar(10, 60, WIDTH - 20, 35, boss_health, boss_max_health)
+                    draw_boss_projectile(int(proj[0] + shake_offset_x), int(proj[1] + shake_offset_y), proj[2], time_offset, current_level)
+                draw_boss_health_bar(10, 60, WIDTH - 20, 35, boss_health, boss_max_health, current_level)
 
             particle_system.draw(screen)
 
@@ -1635,7 +2043,7 @@ def main():
             
             # Continue showing game state (frozen)
             for obstacle in obstacles:
-                draw_obstacle(obstacle[2], int(obstacle[0]), int(obstacle[1]), obstacle_size, OBSTACLE_GLOW_COLORS[obstacle[2]], time_offset * 0.1, time_offset)
+                draw_obstacle(obstacle[2], int(obstacle[0]), int(obstacle[1]), obstacle[3], OBSTACLE_GLOW_COLORS[obstacle[2]], time_offset * 0.1, time_offset)
             
             draw_player_trail(screen, player_trail, selected_role, PLAYER_COLORS[selected_role], PLAYER_GLOW_COLORS[selected_role])
             draw_player(selected_role, PLAYER_COLORS[selected_role], int(player_x + (original_player_size - player_size) // 2), int(player_y + (original_player_size - player_size) // 2), int(player_size), PLAYER_GLOW_COLORS[selected_role], time_offset * 0.15)
@@ -1709,7 +2117,7 @@ def main():
             
             # Continue showing game state (frozen)
             for obstacle in obstacles:
-                draw_obstacle(obstacle[2], int(obstacle[0]), int(obstacle[1]), obstacle_size, OBSTACLE_GLOW_COLORS[obstacle[2]], time_offset * 0.1, time_offset)
+                draw_obstacle(obstacle[2], int(obstacle[0]), int(obstacle[1]), obstacle[3], OBSTACLE_GLOW_COLORS[obstacle[2]], time_offset * 0.1, time_offset)
             
             draw_player_trail(screen, player_trail, selected_role, PLAYER_COLORS[selected_role], PLAYER_GLOW_COLORS[selected_role])
             draw_player(selected_role, PLAYER_COLORS[selected_role], int(player_x + (original_player_size - player_size) // 2), int(player_y + (original_player_size - player_size) // 2), int(player_size), PLAYER_GLOW_COLORS[selected_role], time_offset * 0.15)
@@ -1735,7 +2143,20 @@ def main():
             draw_glow(screen, SUCCESS_COLOR, panel_rect, 20, 25)
             
             # Boss defeated text
-            boss_defeated_text = font_header.render("BOSS DEFEATED!", True, SUCCESS_COLOR)
+            boss_configs = {
+                1: "MECHA-SENTINEL",
+                2: "NEON PHANTOM",
+                3: "CYBER-BEAST",
+                4: "INSECTOID",
+                5: "VOID HAG",
+                6: "THE WATCHER",
+                7: "PLASMA LICH",
+                8: "TOXIC BLOB",
+                9: "ANCIENT WYRM",
+                10: "THE CORE",
+            }
+            boss_name = boss_configs.get(current_level, "BOSS")
+            boss_defeated_text = font_header.render(f"{boss_name} DEFEATED!", True, SUCCESS_COLOR)
             screen.blit(boss_defeated_text, (WIDTH // 2 - boss_defeated_text.get_width() // 2, panel_rect.y + 25))
             
             # Stats
@@ -1776,6 +2197,9 @@ def main():
                 obstacles = []
                 boss_projectiles = []
                 boss_active = False
+                boss_attack_timer = 0
+                boss_pattern_timer = 0
+                boss_current_pattern = 0
                 game_state = PLAYING
 
         elif game_state == GAME_OVER:
@@ -1786,7 +2210,7 @@ def main():
 
             # Draw remaining obstacles with shake
             for obstacle in obstacles:
-                draw_obstacle(obstacle[2], int(obstacle[0] + shake_offset_x), int(obstacle[1] + shake_offset_y), obstacle_size, OBSTACLE_GLOW_COLORS[obstacle[2]], time_offset * 0.1, time_offset)
+                draw_obstacle(obstacle[2], int(obstacle[0] + shake_offset_x), int(obstacle[1] + shake_offset_y), obstacle[3], OBSTACLE_GLOW_COLORS[obstacle[2]], time_offset * 0.1, time_offset)
 
             particle_system.draw(screen)
 
