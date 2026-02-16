@@ -1,13 +1,164 @@
-C:\Users\Yu Yu\miniconda3\envs\ChatAI_py3.10\lib\site-packages\pygame\pkgdata.py:25: UserWarning: pkg_resources is deprecated as an API. See https:/
-/setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
-  from pkg_resources import resource_stream, resource_exists
-pygame 2.6.1 (SDL 2.28.4, Python 3.10.16)
-Hello from the pygame community. https://www.pygame.org/contribute.html
-Traceback (most recent call last):
-  File "D:\WuDongGame\main.py", line 681, in <module>
-    main()
-  File "D:\WuDongGame\main.py", line 478, in main
-    draw_obstacle(OBSTACLE_TURTLE, legend_x + 280, legend_y, 24, OBSTACLE_GLOW_COLORS[OBSTACLE_TURTLE])
-  File "D:\WuDongGame\main.py", line 283, in draw_obstacle
-    pygame.draw.ellipse(screen, tuple(max(0, c - 50) for c in color), (x + size//3, y + size//4, size//3, size//2), border_radius=8)
-TypeError: 'border_radius' is an invalid keyword argument for this function
+spaceship:
+
+if shape == "spaceship":
+        # --- Advanced Sci-Fi Interceptor ---
+        # Main Hull (Tapered sleek body)
+        hull_pts = [
+            (cx, y),                                # Nose
+            (cx + int(10 * s), y + int(25 * s)),    # Right mid
+            (cx + int(8 * s), y + size),            # Right aft
+            (cx - int(8 * s), y + size),            # Left aft
+            (cx - int(10 * s), y + int(25 * s)),    # Left mid
+        ]
+        pygame.draw.polygon(surf, color, hull_pts)
+        
+        # Central Ridge (Adds depth)
+        ridge_color = tuple(min(255, c + 40) for c in color)
+        pygame.draw.line(surf, ridge_color, (cx, y + int(5 * s)), (cx, y + size - int(5 * s)), max(1, int(2 * s)))
+
+        # Swept Wings
+        wing_color = tuple(max(0, c - 30) for c in color)
+        # Left Wing
+        pygame.draw.polygon(surf, wing_color, [
+            (cx - int(8 * s), y + int(15 * s)),
+            (cx - int(22 * s), y + size - int(5 * s)),
+            (cx - int(22 * s), y + size + int(2 * s)),
+            (cx - int(8 * s), y + size - int(5 * s))
+        ])
+        # Right Wing
+        pygame.draw.polygon(surf, wing_color, [
+            (cx + int(8 * s), y + int(15 * s)),
+            (cx + int(22 * s), y + size - int(5 * s)),
+            (cx + int(22 * s), y + size + int(2 * s)),
+            (cx + int(8 * s), y + size - int(5 * s))
+        ])
+
+        # Wing Lights (Small neon dots)
+        light_color = NEON_CYAN if pulse % 0.4 > 0.2 else (255, 255, 255)
+        pygame.draw.circle(surf, light_color, (cx - int(20 * s), y + size - int(2 * s)), max(1, int(2 * s)))
+        pygame.draw.circle(surf, light_color, (cx + int(20 * s), y + size - int(2 * s)), max(1, int(2 * s)))
+
+        # Cockpit (Glassy look)
+        cockpit_rect = (cx - int(4 * s), y + int(8 * s), int(8 * s), int(14 * s))
+        pygame.draw.ellipse(surf, (30, 40, 60), cockpit_rect) # Base
+        pygame.draw.ellipse(surf, (100, 200, 255), 
+                            (cx - int(3 * s), y + int(10 * s), int(6 * s), int(5 * s))) # Shine
+
+        # Engine Thruster (Flickering Core)
+        engine_w = int(12 * s)
+        flame_h = int((10 + math.sin(pulse * 10) * 5) * s)
+        # Outer Glow
+        pygame.draw.rect(surf, (255, 100, 0), (cx - engine_w//2, y + size, engine_w, flame_h // 2), border_radius=3)
+        # Inner Core
+        pygame.draw.rect(surf, (255, 255, 200), (cx - engine_w//4, y + size, engine_w // 2, flame_h // 3), border_radius=2)
+
+plane:
+
+elif shape == "aeroplane":
+        # --- Light Ghost Gray Air Superiority Fighter ---
+        # Define the realistic light palette
+        BODY_LIGHT = (210, 215, 225)      # Main Light Gray
+        BODY_SHADE = (170, 175, 185)      # Shaded Gray for wings
+        NOSE_CONE = (100, 105, 115)       # Darker radar nose
+        COCKPIT_GLASS = (20, 30, 45)      # Deep canopy
+        
+        # 1. Main Fuselage
+        # Nose cone
+        pygame.draw.polygon(surf, NOSE_CONE, [(cx, y - int(8 * s)), (cx + int(3 * s), y), (cx - int(3 * s), y)])
+        # Main body
+        pygame.draw.rect(surf, BODY_LIGHT, (cx - int(4 * s), y, int(8 * s), size))
+
+        # 2. Air Intakes (Slanted for realism)
+        pygame.draw.polygon(surf, (40, 45, 55), [
+            (cx - int(4 * s), y + int(15 * s)), (cx - int(8 * s), y + int(18 * s)), 
+            (cx - int(8 * s), y + int(28 * s)), (cx - int(4 * s), y + int(25 * s))
+        ])
+        pygame.draw.polygon(surf, (40, 45, 55), [
+            (cx + int(4 * s), y + int(15 * s)), (cx + int(8 * s), y + int(18 * s)), 
+            (cx + int(8 * s), y + int(28 * s)), (cx + int(4 * s), y + int(25 * s))
+        ])
+
+        # 3. Main Wings (Light Ghost Gray with Shading)
+        # Left Wing
+        pygame.draw.polygon(surf, BODY_SHADE, [
+            (cx - int(4 * s), y + int(10 * s)),   # Leading edge extension
+            (cx - int(26 * s), y + size - int(8 * s)), # Wing tip
+            (cx - int(26 * s), y + size - int(3 * s)), # Wing tip back
+            (cx - int(4 * s), y + size - int(6 * s))   # Root back
+        ])
+        # Right Wing
+        pygame.draw.polygon(surf, BODY_SHADE, [
+            (cx + int(4 * s), y + int(10 * s)),
+            (cx + int(26 * s), y + size - int(8 * s)),
+            (cx + int(26 * s), y + size - int(3 * s)),
+            (cx + int(4 * s), y + size - int(6 * s))
+        ])
+
+        # 4. Wing-tip Missiles (White Sidewinders)
+        pygame.draw.rect(surf, (240, 240, 240), (cx - int(27 * s), y + size - int(12 * s), int(2 * s), int(10 * s)))
+        pygame.draw.rect(surf, (240, 240, 240), (cx + int(25 * s), y + size - int(12 * s), int(2 * s), int(10 * s)))
+
+        # 5. Rear Horizontal Stabilizers
+        pygame.draw.polygon(surf, BODY_SHADE, [(cx - int(4 * s), y + size - int(4 * s)), (cx - int(14 * s), y + size + int(6 * s)), (cx - int(4 * s), y + size)])
+        pygame.draw.polygon(surf, BODY_SHADE, [(cx + int(4 * s), y + size - int(4 * s)), (cx + int(14 * s), y + size + int(6 * s)), (cx + int(4 * s), y + size)])
+
+        # 6. Cockpit Bubble (With highlight)
+        pygame.draw.ellipse(surf, COCKPIT_GLASS, (cx - int(3 * s), y + int(4 * s), int(6 * s), int(16 * s)))
+        pygame.draw.ellipse(surf, (100, 150, 200), (cx - int(2 * s), y + int(6 * s), int(2 * s), int(5 * s)))
+
+        # 7. Engine Exhaust (Twin Blue Afterburners)
+        afterburner_glow = (120, 230, 255) if pulse % 0.3 > 0.15 else (80, 180, 255)
+        pygame.draw.circle(surf, (60, 60, 70), (cx - int(2 * s), y + size), int(3 * s))
+        pygame.draw.circle(surf, (60, 60, 70), (cx + int(2 * s), y + size), int(3 * s))
+        
+        flame_len = int((6 + math.sin(pulse * 12) * 4) * s)
+        pygame.draw.line(surf, afterburner_glow, (cx - int(2 * s), y + size), (cx - int(2 * s), y + size + flame_len), 2)
+        pygame.draw.line(surf, afterburner_glow, (cx + int(2 * s), y + size), (cx + int(2 * s), y + size + flame_len), 2)
+
+Dragon:
+
+elif shape == "dragon_kid":
+        # --- Friendly Forest Dragon ---
+        BODY_GREEN = (100, 220, 60)
+        BELLY_YELLOW = (255, 255, 150)
+        EYE_WHITE = (255, 255, 255)
+        
+        # Gentle floating animation
+        float_y = math.sin(pulse * 3) * 5 * s
+        wing_flap = math.sin(pulse * 10) * 10 * s
+        
+        # 1. Small Fluttery Wings
+        for side in [-1, 1]:
+            pygame.draw.ellipse(surf, (255, 200, 0), (
+                cx + (8 * s * side) - (5 * s if side == 1 else 0), 
+                y + (20 * s) + float_y + wing_flap, 
+                10 * s, 15 * s
+            ))
+
+        # 2. Chubby Body
+        pygame.draw.ellipse(surf, BODY_GREEN, (cx - 15*s, y + 15*s + float_y, 30*s, 35*s))
+        # Pale Belly
+        pygame.draw.ellipse(surf, BELLY_YELLOW, (cx - 10*s, y + 25*s + float_y, 20*s, 22*s))
+
+        # 3. Rounded Tail
+        tail_pts = [(cx - 10*s, y + 45*s + float_y), (cx, y + 55*s + float_y), (cx + 10*s, y + 45*s + float_y)]
+        pygame.draw.lines(surf, BODY_GREEN, False, tail_pts, int(8*s))
+
+        # 4. Big Head
+        head_rect = (cx - 18*s, y - 5*s + float_y, 36*s, 30*s)
+        pygame.draw.ellipse(surf, BODY_GREEN, head_rect)
+
+        # 5. Friendly Eyes (The "Cute" Secret)
+        # White part
+        pygame.draw.circle(surf, EYE_WHITE, (int(cx - 8*s), int(y + 8*s + float_y)), int(6*s))
+        pygame.draw.circle(surf, EYE_WHITE, (int(cx + 8*s), int(y + 8*s + float_y)), int(6*s))
+        # Pupils
+        pygame.draw.circle(surf, (0, 0, 0), (int(cx - 8*s), int(y + 8*s + float_y)), int(3*s))
+        pygame.draw.circle(surf, (0, 0, 0), (int(cx + 8*s), int(y + 8*s + float_y)), int(3*s))
+        # Eye Sparkle (tiny white dot)
+        pygame.draw.circle(surf, EYE_WHITE, (int(cx - 9*s), int(y + 7*s + float_y)), int(1.5*s))
+        pygame.draw.circle(surf, EYE_WHITE, (int(cx + 7*s), int(y + 7*s + float_y)), int(1.5*s))
+
+        # 6. Little Nubs (Horns)
+        pygame.draw.circle(surf, BELLY_YELLOW, (int(cx - 12*s), int(y - 2*s + float_y)), int(4*s))
+        pygame.draw.circle(surf, BELLY_YELLOW, (int(cx + 12*s), int(y - 2*s + float_y)), int(4*s))

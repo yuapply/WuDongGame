@@ -83,6 +83,7 @@ PLAYING = "playing"
 GAME_OVER = "game_over"
 ENTER_NAME = "enter_name"
 LEADERBOARD = "leaderboard"
+LEVEL_TRANSITION = "level_transition"
 
 # --- Score persistence ---
 SCORES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scores.json")
@@ -442,382 +443,163 @@ def draw_player(shape, color, x, y, size, glow_color=None, pulse=0, target_surfa
     s = max(size / 40.0, 0.1)  # scale factor relative to default size 40
 
     if shape == "spaceship":
-        # --- Sleek rocket body ---
-        body_pts = [
-            (cx, y - int(4 * s)),                          # nose tip
-            (cx + int(5 * s), y + int(6 * s)),             # upper right
-            (cx + int(7 * s), y + int(16 * s)),            # mid right
-            (cx + int(8 * s), y + int(28 * s)),            # lower right widest
-            (cx + int(6 * s), y + size),                   # engine right
-            (cx - int(6 * s), y + size),                   # engine left
-            (cx - int(8 * s), y + int(28 * s)),            # lower left widest
-            (cx - int(7 * s), y + int(16 * s)),            # mid left
-            (cx - int(5 * s), y + int(6 * s)),             # upper left
+        # --- Advanced Sci-Fi Interceptor ---
+        # Main Hull (Tapered sleek body)
+        hull_pts = [
+            (cx, y),                                # Nose
+            (cx + int(10 * s), y + int(25 * s)),    # Right mid
+            (cx + int(8 * s), y + size),            # Right aft
+            (cx - int(8 * s), y + size),            # Left aft
+            (cx - int(10 * s), y + int(25 * s)),    # Left mid
         ]
-        pygame.draw.polygon(surf, color, body_pts)
+        pygame.draw.polygon(surf, color, hull_pts)
+        
+        # Central Ridge (Adds depth)
+        ridge_color = tuple(min(255, c + 40) for c in color)
+        pygame.draw.line(surf, ridge_color, (cx, y + int(5 * s)), (cx, y + size - int(5 * s)), max(1, int(2 * s)))
 
-        # Hull panel lines for depth
-        panel_surf = pygame.Surface((size + 20, size + 20), pygame.SRCALPHA)
-        po = 10  # panel offset
-        line_color = (*tuple(max(0, c - 35) for c in color), 100)
-        pygame.draw.line(panel_surf, line_color,
-                         (cx - x + po, y + int(10 * s) - y + po),
-                         (cx - x + po, y + int(30 * s) - y + po), 1)
-        pygame.draw.line(panel_surf, line_color,
-                         (cx - x + po - int(5 * s), y + int(18 * s) - y + po),
-                         (cx - x + po + int(5 * s), y + int(18 * s) - y + po), 1)
-        pygame.draw.line(panel_surf, line_color,
-                         (cx - x + po - int(6 * s), y + int(26 * s) - y + po),
-                         (cx - x + po + int(6 * s), y + int(26 * s) - y + po), 1)
-        surf.blit(panel_surf, (x - 10, y - 10))
+        # Swept Wings
+        wing_color = tuple(max(0, c - 30) for c in color)
+        # Left Wing
+        pygame.draw.polygon(surf, wing_color, [
+            (cx - int(8 * s), y + int(15 * s)),
+            (cx - int(22 * s), y + size - int(5 * s)),
+            (cx - int(22 * s), y + size + int(2 * s)),
+            (cx - int(8 * s), y + size - int(5 * s))
+        ])
+        # Right Wing
+        pygame.draw.polygon(surf, wing_color, [
+            (cx + int(8 * s), y + int(15 * s)),
+            (cx + int(22 * s), y + size - int(5 * s)),
+            (cx + int(22 * s), y + size + int(2 * s)),
+            (cx + int(8 * s), y + size - int(5 * s))
+        ])
 
-        # Swept-back side fins with gradient shading
-        darker = tuple(max(0, c - 50) for c in color)
-        lighter = tuple(min(255, c + 20) for c in color)
-        # Left fin
-        fin_l = [
-            (cx - int(8 * s), y + int(28 * s)),
-            (cx - int(16 * s), y + size + int(4 * s)),
-            (cx - int(10 * s), y + size + int(2 * s)),
-            (cx - int(6 * s), y + size),
-        ]
-        pygame.draw.polygon(surf, darker, fin_l)
-        # Right fin
-        fin_r = [
-            (cx + int(8 * s), y + int(28 * s)),
-            (cx + int(16 * s), y + size + int(4 * s)),
-            (cx + int(10 * s), y + size + int(2 * s)),
-            (cx + int(6 * s), y + size),
-        ]
-        pygame.draw.polygon(surf, lighter, fin_r)
+        # Wing Lights (Small neon dots)
+        light_color = NEON_CYAN if (pulse % 0.4) > 0.2 else (255, 255, 255)
+        pygame.draw.circle(surf, light_color, (cx - int(20 * s), y + size - int(2 * s)), max(1, int(2 * s)))
+        pygame.draw.circle(surf, light_color, (cx + int(20 * s), y + size - int(2 * s)), max(1, int(2 * s)))
 
-        # Engine nozzle - darker rectangle at bottom
-        nozzle_w = int(10 * s)
-        nozzle_h = int(4 * s)
-        nozzle_color = tuple(max(0, c - 70) for c in color)
-        pygame.draw.rect(surf, nozzle_color,
-                         (cx - nozzle_w // 2, y + size - nozzle_h, nozzle_w, nozzle_h),
-                         border_radius=max(1, int(s)))
+        # Cockpit (Glassy look)
+        cockpit_rect = (cx - int(4 * s), y + int(8 * s), int(8 * s), int(14 * s))
+        pygame.draw.ellipse(surf, (30, 40, 60), cockpit_rect)  # Base
+        pygame.draw.ellipse(surf, (100, 200, 255),
+                            (cx - int(3 * s), y + int(10 * s), int(6 * s), int(5 * s)))  # Shine
 
-        # Cockpit - bright oval window near the top with glint
-        cockpit_w = max(2, int(8 * s))
-        cockpit_h = max(3, int(12 * s))
-        cockpit_y = y + int(8 * s)
-        cockpit_surf = pygame.Surface((cockpit_w + 4, cockpit_h + 4), pygame.SRCALPHA)
-        # Cockpit base
-        pygame.draw.ellipse(cockpit_surf, (100, 180, 255, 180),
-                            (2, 2, cockpit_w, cockpit_h))
-        # Bright inner glint
-        glint_w = max(1, cockpit_w // 2)
-        glint_h = max(1, cockpit_h // 3)
-        pygame.draw.ellipse(cockpit_surf, (200, 230, 255, 220),
-                            (2 + cockpit_w // 4, 2 + int(1 * s), glint_w, glint_h))
-        surf.blit(cockpit_surf, (cx - cockpit_w // 2 - 2, cockpit_y - 2))
-
-        # Multi-layered animated thruster flame
-        flame_flicker = math.sin(pulse * 6) * 3 + 5
-        flame_len = int(flame_flicker * s) + int(6 * s)
-        flame_w = int(12 * s)
-        flame_surf = pygame.Surface((flame_w + 10, flame_len + 10), pygame.SRCALPHA)
-        fo = 5  # flame offset
-        # Outer flame (orange)
-        outer_pts = [
-            (fo + flame_w // 2 - int(5 * s), 0 + fo),
-            (fo + flame_w // 2, flame_len + fo),
-            (fo + flame_w // 2 + int(5 * s), 0 + fo),
-        ]
-        pygame.draw.polygon(flame_surf, (255, 120, 20, 150), outer_pts)
-        # Inner flame (yellow)
-        inner_len = int(flame_len * 0.65)
-        inner_pts = [
-            (fo + flame_w // 2 - int(3 * s), 0 + fo),
-            (fo + flame_w // 2, inner_len + fo),
-            (fo + flame_w // 2 + int(3 * s), 0 + fo),
-        ]
-        pygame.draw.polygon(flame_surf, (255, 220, 80, 200), inner_pts)
-        # Core (white-hot)
-        core_len = int(flame_len * 0.3)
-        core_pts = [
-            (fo + flame_w // 2 - int(1 * s), 0 + fo),
-            (fo + flame_w // 2, core_len + fo),
-            (fo + flame_w // 2 + int(1 * s), 0 + fo),
-        ]
-        pygame.draw.polygon(flame_surf, (255, 255, 220, 230), core_pts)
-        surf.blit(flame_surf, (cx - flame_w // 2 - 5, y + size - fo))
+        # Engine Thruster (Flickering Core)
+        engine_w = int(12 * s)
+        flame_h = int((10 + math.sin(pulse * 10) * 5) * s)
+        # Outer Glow
+        pygame.draw.rect(surf, (255, 100, 0), (cx - engine_w//2, y + size, engine_w, flame_h // 2), border_radius=3)
+        # Inner Core
+        pygame.draw.rect(surf, (255, 255, 200), (cx - engine_w//4, y + size, engine_w // 2, flame_h // 3), border_radius=2)
 
     elif shape == "aeroplane":
-        # --- Properly proportioned aeroplane ---
-        # Fuselage - elongated cylinder-like body
-        fuse_w = max(3, int(12 * s))
-        fuse_h = size + int(4 * s)
-        fuse_x = cx - fuse_w // 2
-        fuse_y = y - int(2 * s)
-        pygame.draw.ellipse(surf, color, (fuse_x, fuse_y, fuse_w, fuse_h))
+        # --- Light Ghost Gray Air Superiority Fighter ---
+        # Define the realistic light palette
+        BODY_LIGHT = (210, 215, 225)      # Main Light Gray
+        BODY_SHADE = (170, 175, 185)      # Shaded Gray for wings
+        NOSE_CONE = (100, 105, 115)       # Darker radar nose
+        COCKPIT_GLASS = (20, 30, 45)      # Deep canopy
+        
+        # 1. Main Fuselage
+        # Nose cone
+        pygame.draw.polygon(surf, NOSE_CONE, [(cx, y - int(8 * s)), (cx + int(3 * s), y), (cx - int(3 * s), y)])
+        # Main body
+        pygame.draw.rect(surf, BODY_LIGHT, (cx - int(4 * s), y, int(8 * s), size))
 
-        # Nose cone - rounded lighter front
-        nose_w = max(2, int(8 * s))
-        nose_h = max(3, int(8 * s))
-        nose_color = tuple(min(255, c + 30) for c in color)
-        pygame.draw.ellipse(surf, nose_color,
-                            (cx - nose_w // 2, y - int(3 * s), nose_w, nose_h))
+        # 2. Air Intakes (Slanted for realism)
+        pygame.draw.polygon(surf, (40, 45, 55), [
+            (cx - int(4 * s), y + int(15 * s)), (cx - int(8 * s), y + int(18 * s)), 
+            (cx - int(8 * s), y + int(28 * s)), (cx - int(4 * s), y + int(25 * s))
+        ])
+        pygame.draw.polygon(surf, (40, 45, 55), [
+            (cx + int(4 * s), y + int(15 * s)), (cx + int(8 * s), y + int(18 * s)), 
+            (cx + int(8 * s), y + int(28 * s)), (cx + int(4 * s), y + int(25 * s))
+        ])
 
-        # Main swept-back wings extending well past body
-        wing_color = tuple(min(255, c + 15) for c in color)
-        wing_tip_color = tuple(min(255, c + 40) for c in color)
-        wing_y = cy + int(2 * s)
-        # Left wing
-        wing_l = [
-            (cx - int(2 * s), wing_y - int(2 * s)),
-            (cx - int(20 * s), wing_y + int(6 * s)),
-            (cx - int(18 * s), wing_y + int(8 * s)),
-            (cx - int(2 * s), wing_y + int(3 * s)),
-        ]
-        pygame.draw.polygon(surf, wing_color, wing_l)
-        # Left wing tip marking
-        tip_l = [
-            (cx - int(17 * s), wing_y + int(5 * s)),
-            (cx - int(20 * s), wing_y + int(6 * s)),
-            (cx - int(18 * s), wing_y + int(8 * s)),
-            (cx - int(16 * s), wing_y + int(7 * s)),
-        ]
-        pygame.draw.polygon(surf, wing_tip_color, tip_l)
-        # Right wing
-        wing_r = [
-            (cx + int(2 * s), wing_y - int(2 * s)),
-            (cx + int(20 * s), wing_y + int(6 * s)),
-            (cx + int(18 * s), wing_y + int(8 * s)),
-            (cx + int(2 * s), wing_y + int(3 * s)),
-        ]
-        pygame.draw.polygon(surf, wing_color, wing_r)
-        # Right wing tip marking
-        tip_r = [
-            (cx + int(17 * s), wing_y + int(5 * s)),
-            (cx + int(20 * s), wing_y + int(6 * s)),
-            (cx + int(18 * s), wing_y + int(8 * s)),
-            (cx + int(16 * s), wing_y + int(7 * s)),
-        ]
-        pygame.draw.polygon(surf, wing_tip_color, tip_r)
+        # 3. Main Wings (Light Ghost Gray with Shading)
+        # Left Wing
+        pygame.draw.polygon(surf, BODY_SHADE, [
+            (cx - int(4 * s), y + int(10 * s)),   # Leading edge extension
+            (cx - int(26 * s), y + size - int(8 * s)), # Wing tip
+            (cx - int(26 * s), y + size - int(3 * s)), # Wing tip back
+            (cx - int(4 * s), y + size - int(6 * s))   # Root back
+        ])
+        # Right Wing
+        pygame.draw.polygon(surf, BODY_SHADE, [
+            (cx + int(4 * s), y + int(10 * s)),
+            (cx + int(26 * s), y + size - int(8 * s)),
+            (cx + int(26 * s), y + size - int(3 * s)),
+            (cx + int(4 * s), y + size - int(6 * s))
+        ])
 
-        # Engine nacelles under wings
-        nacelle_color = tuple(max(0, c - 40) for c in color)
-        nacelle_r = max(1, int(3 * s))
-        pygame.draw.circle(surf, nacelle_color,
-                           (cx - int(12 * s), wing_y + int(5 * s)), nacelle_r)
-        pygame.draw.circle(surf, nacelle_color,
-                           (cx + int(12 * s), wing_y + int(5 * s)), nacelle_r)
+        # 4. Wing-tip Missiles (White Sidewinders)
+        pygame.draw.rect(surf, (240, 240, 240), (cx - int(27 * s), y + size - int(12 * s), int(2 * s), int(10 * s)))
+        pygame.draw.rect(surf, (240, 240, 240), (cx + int(25 * s), y + size - int(12 * s), int(2 * s), int(10 * s)))
 
-        # Tail section - vertical stabilizer (tall fin)
-        tail_color = tuple(max(0, c - 25) for c in color)
-        # Vertical stabilizer
-        vstab = [
-            (cx, y + size - int(10 * s)),
-            (cx - int(1 * s), y + size),
-            (cx + int(1 * s), y + size),
-        ]
-        pygame.draw.polygon(surf, tail_color, vstab)
-        # Horizontal stabilizers (small rear wings)
-        hstab_l = [
-            (cx - int(1 * s), y + size - int(4 * s)),
-            (cx - int(10 * s), y + size),
-            (cx - int(1 * s), y + size),
-        ]
-        hstab_r = [
-            (cx + int(1 * s), y + size - int(4 * s)),
-            (cx + int(10 * s), y + size),
-            (cx + int(1 * s), y + size),
-        ]
-        pygame.draw.polygon(surf, tail_color, hstab_l)
-        pygame.draw.polygon(surf, tail_color, hstab_r)
+        # 5. Rear Horizontal Stabilizers
+        pygame.draw.polygon(surf, BODY_SHADE, [(cx - int(4 * s), y + size - int(4 * s)), (cx - int(14 * s), y + size + int(6 * s)), (cx - int(4 * s), y + size)])
+        pygame.draw.polygon(surf, BODY_SHADE, [(cx + int(4 * s), y + size - int(4 * s)), (cx + int(14 * s), y + size + int(6 * s)), (cx + int(4 * s), y + size)])
 
-        # Cockpit windshield at the front
-        cockpit_surf = pygame.Surface((int(8 * s), int(10 * s)), pygame.SRCALPHA)
-        cw = max(2, int(6 * s))
-        ch = max(3, int(8 * s))
-        pygame.draw.ellipse(cockpit_surf, (180, 230, 255, 160), (1, 1, cw, ch))
-        # Glint
-        pygame.draw.ellipse(cockpit_surf, (220, 245, 255, 200),
-                            (1 + cw // 4, 1, max(1, cw // 2), max(1, ch // 3)))
-        surf.blit(cockpit_surf, (cx - cw // 2 - 1, y + int(1 * s)))
+        # 6. Cockpit Bubble (With highlight)
+        pygame.draw.ellipse(surf, COCKPIT_GLASS, (cx - int(3 * s), y + int(4 * s), int(6 * s), int(16 * s)))
+        pygame.draw.ellipse(surf, (100, 150, 200), (cx - int(2 * s), y + int(6 * s), int(2 * s), int(5 * s)))
+
+        # 7. Engine Exhaust (Twin Blue Afterburners)
+        afterburner_glow = (120, 230, 255) if (pulse % 0.3) > 0.15 else (80, 180, 255)
+        pygame.draw.circle(surf, (60, 60, 70), (cx - int(2 * s), y + size), int(3 * s))
+        pygame.draw.circle(surf, (60, 60, 70), (cx + int(2 * s), y + size), int(3 * s))
+        
+        flame_len = int((6 + math.sin(pulse * 12) * 4) * s)
+        pygame.draw.line(surf, afterburner_glow, (cx - int(2 * s), y + size), (cx - int(2 * s), y + size + flame_len), 2)
+        pygame.draw.line(surf, afterburner_glow, (cx + int(2 * s), y + size), (cx + int(2 * s), y + size + flame_len), 2)
 
     elif shape == "dragon":
-        # --- Detailed dragon with serpentine body ---
-        segments = 8
-        seg_positions = []
-        for i in range(segments):
-            t = i / (segments - 1)
-            sx = cx + math.sin(t * math.pi * 2 + pulse * 2) * (size // 4)
-            sy = y + size - t * size
-            seg_positions.append((sx, sy))
+        # --- Friendly Forest Dragon ---
+        BODY_GREEN = (100, 220, 60)
+        BELLY_YELLOW = (255, 255, 150)
+        EYE_WHITE = (255, 255, 255)
+        
+        # Gentle floating animation
+        float_y = math.sin(pulse * 3) * 5 * s
+        wing_flap = math.sin(pulse * 10) * 10 * s
+        
+        # 1. Small Fluttery Wings
+        for side in [-1, 1]:
+            pygame.draw.ellipse(surf, (255, 200, 0), (
+                cx + (8 * s * side) - (5 * s if side == 1 else 0), 
+                y + (20 * s) + float_y + wing_flap, 
+                10 * s, 15 * s
+            ))
 
-        # Bat-like wings from upper body (segment 5-6 area)
-        wing_seg = min(5, segments - 2)
-        wing_x = seg_positions[wing_seg][0]
-        wing_y_pos = seg_positions[wing_seg][1]
-        wing_color = tuple(min(255, c + 10) for c in color)
-        membrane_color = (*tuple(min(255, c + 30) for c in color), 80)
-        wing_span = int(18 * s)
-        wing_h = int(14 * s)
+        # 2. Chubby Body
+        pygame.draw.ellipse(surf, BODY_GREEN, (cx - 15*s, y + 15*s + float_y, 30*s, 35*s))
+        # Pale Belly
+        pygame.draw.ellipse(surf, BELLY_YELLOW, (cx - 10*s, y + 25*s + float_y, 20*s, 22*s))
 
-        wing_surf = pygame.Surface((size + int(40 * s), size + 20), pygame.SRCALPHA)
-        wo = int(20 * s)  # wing offset for surface coordinates
+        # 3. Rounded Tail
+        tail_pts = [(cx - 10*s, y + 45*s + float_y), (cx, y + 55*s + float_y), (cx + 10*s, y + 45*s + float_y)]
+        pygame.draw.lines(surf, BODY_GREEN, False, tail_pts, int(8*s))
 
-        # Left wing - 3 bone segments with membrane
-        lw_base = (wing_x - x + wo, wing_y_pos - y + 10)
-        lw_tip1 = (wing_x - x + wo - wing_span, wing_y_pos - y + 10 - wing_h)
-        lw_tip2 = (wing_x - x + wo - int(wing_span * 0.7), wing_y_pos - y + 10 - int(wing_h * 0.5))
-        lw_tip3 = (wing_x - x + wo - int(wing_span * 0.4), wing_y_pos - y + 10 + int(3 * s))
-        # Membrane fill
-        membrane_pts = [lw_base, lw_tip1, lw_tip2, lw_tip3]
-        pygame.draw.polygon(wing_surf, membrane_color, membrane_pts)
-        # Bone lines
-        bone_color = (*tuple(min(255, c + 50) for c in color), 180)
-        pygame.draw.line(wing_surf, bone_color, lw_base, lw_tip1, max(1, int(s)))
-        pygame.draw.line(wing_surf, bone_color, lw_base, lw_tip2, max(1, int(s)))
-        pygame.draw.line(wing_surf, bone_color, lw_base, lw_tip3, max(1, int(s)))
+        # 4. Big Head
+        head_rect = (cx - 18*s, y - 5*s + float_y, 36*s, 30*s)
+        pygame.draw.ellipse(surf, BODY_GREEN, head_rect)
 
-        # Right wing
-        rw_base = (wing_x - x + wo, wing_y_pos - y + 10)
-        rw_tip1 = (wing_x - x + wo + wing_span, wing_y_pos - y + 10 - wing_h)
-        rw_tip2 = (wing_x - x + wo + int(wing_span * 0.7), wing_y_pos - y + 10 - int(wing_h * 0.5))
-        rw_tip3 = (wing_x - x + wo + int(wing_span * 0.4), wing_y_pos - y + 10 + int(3 * s))
-        membrane_pts_r = [rw_base, rw_tip1, rw_tip2, rw_tip3]
-        pygame.draw.polygon(wing_surf, membrane_color, membrane_pts_r)
-        pygame.draw.line(wing_surf, bone_color, rw_base, rw_tip1, max(1, int(s)))
-        pygame.draw.line(wing_surf, bone_color, rw_base, rw_tip2, max(1, int(s)))
-        pygame.draw.line(wing_surf, bone_color, rw_base, rw_tip3, max(1, int(s)))
+        # 5. Friendly Eyes (The "Cute" Secret)
+        # White part
+        pygame.draw.circle(surf, EYE_WHITE, (int(cx - 8*s), int(y + 8*s + float_y)), int(6*s))
+        pygame.draw.circle(surf, EYE_WHITE, (int(cx + 8*s), int(y + 8*s + float_y)), int(6*s))
+        # Pupils
+        pygame.draw.circle(surf, (0, 0, 0), (int(cx - 8*s), int(y + 8*s + float_y)), int(3*s))
+        pygame.draw.circle(surf, (0, 0, 0), (int(cx + 8*s), int(y + 8*s + float_y)), int(3*s))
+        # Eye Sparkle (tiny white dot)
+        pygame.draw.circle(surf, EYE_WHITE, (int(cx - 9*s), int(y + 7*s + float_y)), int(1.5*s))
+        pygame.draw.circle(surf, EYE_WHITE, (int(cx + 7*s), int(y + 7*s + float_y)), int(1.5*s))
 
-        surf.blit(wing_surf, (x - int(20 * s), y - 10))
-
-        # Serpentine body with scaled segments tapering thick to thin
-        for i in range(segments):
-            t = i / (segments - 1)
-            sx, sy = seg_positions[i]
-            seg_r = max(2, int((size // 4) * (0.4 + 0.6 * (1 - t))))
-            # Scale pattern with color variation
-            base_shade = int(20 * math.sin(i * 1.5 + pulse))
-            seg_color = tuple(max(0, min(255, c - int(25 * t) + base_shade)) for c in color)
-            pygame.draw.circle(surf, seg_color, (int(sx), int(sy)), seg_r)
-            # Overlapping scale highlight on upper half
-            if seg_r > 3:
-                scale_surf = pygame.Surface((seg_r * 2, seg_r * 2), pygame.SRCALPHA)
-                highlight_color = (*tuple(min(255, c + 40) for c in color), 60)
-                pygame.draw.arc(scale_surf, highlight_color,
-                                (0, 0, seg_r * 2, seg_r * 2),
-                                0.3, math.pi - 0.3, max(1, int(s)))
-                surf.blit(scale_surf, (int(sx) - seg_r, int(sy) - seg_r))
-
-        # Tapered tail ending in spade/arrow shape
-        tail_x, tail_y = seg_positions[0]
-        spade_size = max(2, int(5 * s))
-        spade_pts = [
-            (int(tail_x), int(tail_y) + int(4 * s)),
-            (int(tail_x) - spade_size, int(tail_y) + spade_size + int(4 * s)),
-            (int(tail_x), int(tail_y) + int(2 * s) + int(4 * s)),
-            (int(tail_x) + spade_size, int(tail_y) + spade_size + int(4 * s)),
-        ]
-        spade_color = tuple(max(0, c - 30) for c in color)
-        pygame.draw.polygon(surf, spade_color, spade_pts)
-
-        # Small clawed limbs (from segments 2 and 4)
-        limb_color = tuple(max(0, c - 40) for c in color)
-        for li in [2, 4]:
-            if li < segments:
-                lx, ly = seg_positions[li]
-                lr = max(2, int(3 * s))
-                # Left leg
-                pygame.draw.line(surf, limb_color,
-                                 (int(lx) - lr, int(ly)),
-                                 (int(lx) - lr - int(4 * s), int(ly) + int(5 * s)),
-                                 max(1, int(s)))
-                # Claw
-                pygame.draw.line(surf, limb_color,
-                                 (int(lx) - lr - int(4 * s), int(ly) + int(5 * s)),
-                                 (int(lx) - lr - int(6 * s), int(ly) + int(4 * s)),
-                                 max(1, int(s)))
-                # Right leg
-                pygame.draw.line(surf, limb_color,
-                                 (int(lx) + lr, int(ly)),
-                                 (int(lx) + lr + int(4 * s), int(ly) + int(5 * s)),
-                                 max(1, int(s)))
-                pygame.draw.line(surf, limb_color,
-                                 (int(lx) + lr + int(4 * s), int(ly) + int(5 * s)),
-                                 (int(lx) + lr + int(6 * s), int(ly) + int(4 * s)),
-                                 max(1, int(s)))
-
-        # Angular head with snout, jaw, and horns
-        head_x = seg_positions[-1][0]
-        head_y = seg_positions[-1][1]
-        head_r = max(3, int(6 * s))
-
-        # Head base (angular)
-        head_pts = [
-            (int(head_x), int(head_y) - int(8 * s)),        # top snout
-            (int(head_x) + int(7 * s), int(head_y) - int(2 * s)),  # right cheek
-            (int(head_x) + int(5 * s), int(head_y) + int(4 * s)),  # right jaw
-            (int(head_x) - int(5 * s), int(head_y) + int(4 * s)),  # left jaw
-            (int(head_x) - int(7 * s), int(head_y) - int(2 * s)),  # left cheek
-        ]
-        head_color = tuple(min(255, c + 15) for c in color)
-        pygame.draw.polygon(surf, head_color, head_pts)
-
-        # Horns
-        horn_color = tuple(min(255, c + 60) for c in color)
-        # Left horn
-        pygame.draw.line(surf, horn_color,
-                         (int(head_x) - int(5 * s), int(head_y) - int(3 * s)),
-                         (int(head_x) - int(9 * s), int(head_y) - int(10 * s)),
-                         max(1, int(1.5 * s)))
-        # Right horn
-        pygame.draw.line(surf, horn_color,
-                         (int(head_x) + int(5 * s), int(head_y) - int(3 * s)),
-                         (int(head_x) + int(9 * s), int(head_y) - int(10 * s)),
-                         max(1, int(1.5 * s)))
-
-        # Lower jaw (slightly open)
-        jaw_pts = [
-            (int(head_x) - int(4 * s), int(head_y) + int(4 * s)),
-            (int(head_x), int(head_y) + int(8 * s)),
-            (int(head_x) + int(4 * s), int(head_y) + int(4 * s)),
-        ]
-        jaw_color = tuple(max(0, c - 50) for c in color)
-        pygame.draw.polygon(surf, jaw_color, jaw_pts)
-
-        # Glowing eyes (red/orange with bright center)
-        eye_r = max(1, int(2.5 * s))
-        eye_glow_r = max(2, int(4 * s))
-        for ex_offset in [-int(3 * s), int(3 * s)]:
-            eye_cx = int(head_x) + ex_offset
-            eye_cy = int(head_y) - int(2 * s)
-            # Eye glow
-            eye_glow_surf = pygame.Surface((eye_glow_r * 2, eye_glow_r * 2), pygame.SRCALPHA)
-            pygame.draw.circle(eye_glow_surf, (255, 60, 20, 80),
-                               (eye_glow_r, eye_glow_r), eye_glow_r)
-            surf.blit(eye_glow_surf, (eye_cx - eye_glow_r, eye_cy - eye_glow_r))
-            # Eye core
-            pygame.draw.circle(surf, (255, 100, 30), (eye_cx, eye_cy), eye_r)
-            # Bright pupil
-            pygame.draw.circle(surf, (255, 220, 80), (eye_cx, eye_cy), max(1, eye_r // 2))
-
-        # Fire breath - animated flame particles from the mouth
-        flame_surf = pygame.Surface((int(20 * s), int(16 * s)), pygame.SRCALPHA)
-        mouth_x = int(head_x)
-        mouth_y = int(head_y) + int(7 * s)
-        flame_len = int(6 * s + math.sin(pulse * 5) * 3 * s)
-        # Outer fire
-        fire_pts = [
-            (int(10 * s), 0),
-            (int(10 * s) - int(4 * s), flame_len),
-            (int(10 * s) + int(4 * s), flame_len),
-        ]
-        pygame.draw.polygon(flame_surf, (255, 80, 20, 140), fire_pts)
-        # Inner fire
-        inner_fire = [
-            (int(10 * s), 0),
-            (int(10 * s) - int(2 * s), int(flame_len * 0.6)),
-            (int(10 * s) + int(2 * s), int(flame_len * 0.6)),
-        ]
-        pygame.draw.polygon(flame_surf, (255, 200, 50, 180), inner_fire)
-        surf.blit(flame_surf, (mouth_x - int(10 * s), mouth_y))
+        # 6. Little Nubs (Horns)
+        pygame.draw.circle(surf, BELLY_YELLOW, (int(cx - 12*s), int(y - 2*s + float_y)), int(4*s))
+        pygame.draw.circle(surf, BELLY_YELLOW, (int(cx + 12*s), int(y - 2*s + float_y)), int(4*s))
 
 
 def draw_obstacle(obstacle_type, x, y, size, glow_color=None, pulse=0, time_offset=0):
@@ -971,6 +753,18 @@ def main():
     base_speed = 0
     current_speed = 0
     spawn_interval = 0
+    current_level = 1
+    level_start_ticks = 0
+    LEVEL_DURATION = 60000
+    
+    # Level transition stats
+    level_obstacles_passed = 0
+    level_obstacles_destroyed = 0
+    level_start_obstacle_count = 0
+    
+    # Transition state
+    transition_start_ticks = 0
+    COUNTDOWN_DURATION = 3000 
 
     speed_boost_timer = 0
     speed_slow_timer = 0
@@ -1143,6 +937,8 @@ def main():
                         obstacles = []
                         score = 0
                         start_ticks = pygame.time.get_ticks()
+                        level_start_ticks = pygame.time.get_ticks()
+                        current_level = 1
                         speed_boost_timer = 0
                         speed_slow_timer = 0
                         shrink_timer = 0
@@ -1156,6 +952,9 @@ def main():
                         last_obstacle_count = 0
                         shake_intensity = 0
                         game_over_timer = 0
+                        level_obstacles_passed = 0
+                        level_obstacles_destroyed = 0
+                        transition_start_ticks = 0
                         player_name = ""
                         game_state = PLAYING
                     elif menu_button.is_clicked():
@@ -1217,6 +1016,8 @@ def main():
                             obstacles = []
                             score = 0
                             start_ticks = pygame.time.get_ticks()
+                            level_start_ticks = pygame.time.get_ticks()
+                            current_level = 1
                             speed_boost_timer = 0
                             speed_slow_timer = 0
                             shrink_timer = 0
@@ -1224,14 +1025,17 @@ def main():
                             bullets = []
                             bullet_cooldown = 0
                             player_size = original_player_size
-                            particle_system = ParticleSystem()
-                            player_trail = []
-                            score_popups = []
-                            last_obstacle_count = 0
-                            shake_intensity = 0
-                            game_over_timer = 0
-                            player_name = ""
-                            game_state = PLAYING
+                        particle_system = ParticleSystem()
+                        player_trail = []
+                        score_popups = []
+                        last_obstacle_count = 0
+                        shake_intensity = 0
+                        game_over_timer = 0
+                        level_obstacles_passed = 0
+                        level_obstacles_destroyed = 0
+                        transition_start_ticks = 0
+                        player_name = ""
+                        game_state = PLAYING
 
             if event.type == pygame.KEYDOWN and game_state == ENTER_NAME:
                 if event.key == pygame.K_RETURN:
@@ -1347,9 +1151,14 @@ def main():
 
             current_time = pygame.time.get_ticks()
             elapsed_seconds = (current_time - start_ticks) / 1000
+            
+            level_elapsed = current_time - level_start_ticks
+            if level_elapsed >= LEVEL_DURATION:
+                transition_start_ticks = current_time
+                game_state = LEVEL_TRANSITION
 
             settings = difficulty_settings[selected_difficulty]
-            base_speed = settings["base_speed"] + (elapsed_seconds * 0.1)
+            base_speed = settings["base_speed"] + (level_elapsed / 1000 * 0.1)
 
             if speed_boost_timer > 0:
                 speed_boost_timer -= clock.get_time()
@@ -1390,8 +1199,10 @@ def main():
 
                 obstacles = [obs for obs in obstacles if obs[1] < HEIGHT]
                 passed = prev_count - len(obstacles)
-                if passed > 0 and len(score_popups) < 5:
-                    score_popups.append(ScorePopup(player_x, player_y - 30, f"+{passed * 10}"))
+                if passed > 0:
+                    level_obstacles_passed += passed
+                    if len(score_popups) < 5:
+                        score_popups.append(ScorePopup(player_x, player_y - 30, f"+{passed * 10}"))
 
             else:
                 if keys[pygame.K_UP] and player_y > 0:
@@ -1413,8 +1224,10 @@ def main():
 
                 obstacles = [obs for obs in obstacles if obs[0] > -obstacle_size]
                 passed = prev_count - len(obstacles)
-                if passed > 0 and len(score_popups) < 5:
-                    score_popups.append(ScorePopup(player_x + player_size, player_y, f"+{passed * 10}"))
+                if passed > 0:
+                    level_obstacles_passed += passed
+                    if len(score_popups) < 5:
+                        score_popups.append(ScorePopup(player_x + player_size, player_y, f"+{passed * 10}"))
 
             size_offset = (original_player_size - player_size) // 2
             player_rect = pygame.Rect(player_x + size_offset, player_y + size_offset, player_size, player_size)
@@ -1497,6 +1310,7 @@ def main():
                         if bullet_rect.colliderect(obs_rect):
                             bullets_hit.append(b)
                             obs_hit.append(obs)
+                            level_obstacles_destroyed += 1
                             cx_hit = obs_rect.centerx
                             cy_hit = obs_rect.centery
                             particle_system.emit(cx_hit, cy_hit, (255, 150, 50), count=12, size=5, glow=True, spread=4)
@@ -1512,12 +1326,60 @@ def main():
 
             # Draw bullets
             for b in bullets:
-                # Glow
-                glow_surf = pygame.Surface((16, 16), pygame.SRCALPHA)
-                pygame.draw.circle(glow_surf, (255, 200, 50, 80), (8, 8), 8)
-                screen.blit(glow_surf, (int(b[0] - 8 + shake_offset_x), int(b[1] - 8 + shake_offset_y)))
-                # Core
-                pygame.draw.circle(screen, (255, 220, 80), (int(b[0] + shake_offset_x), int(b[1] + shake_offset_y)), 3)
+                bx = int(b[0] + shake_offset_x)
+                by = int(b[1] + shake_offset_y)
+                
+                if selected_role == "dragon":
+                    # Fire bullet - animated flame
+                    fire_flicker = math.sin(time_offset * 15) * 2 + 5
+                    # Outer glow
+                    glow_surf = pygame.Surface((20, 20), pygame.SRCALPHA)
+                    pygame.draw.circle(glow_surf, (255, 100, 0, 100), (10, 10), 8)
+                    screen.blit(glow_surf, (bx - 10, by - 10))
+                    # Flame core
+                    pygame.draw.circle(screen, (255, 150, 0), (bx, by), int(3 + fire_flicker * 0.2))
+                    pygame.draw.circle(screen, (255, 220, 50), (bx, by), int(2 + fire_flicker * 0.15))
+                    
+                elif selected_role == "spaceship":
+                    # Blue x-ray bullet - electric effect
+                    # Outer blue glow with pulsing
+                    pulse_size = 6 + math.sin(time_offset * 10) * 2
+                    glow_surf = pygame.Surface((20, 20), pygame.SRCALPHA)
+                    pygame.draw.circle(glow_surf, (0, 150, 255, 80), (10, 10), int(pulse_size))
+                    screen.blit(glow_surf, (bx - 10, by - 10))
+                    # Inner electric core
+                    core_surf = pygame.Surface((12, 12), pygame.SRCALPHA)
+                    pygame.draw.circle(core_surf, (100, 200, 255, 200), (6, 6), 4)
+                    pygame.draw.circle(core_surf, (200, 230, 255, 255), (6, 6), 2)
+                    screen.blit(core_surf, (bx - 6, by - 6))
+                    
+                elif selected_role == "aeroplane":
+                    # Missile - cylindrical with warhead
+                    # Missile body (gray cylinder)
+                    missile_w = 12
+                    missile_h = 4
+                    pygame.draw.rect(screen, (180, 180, 180), (bx - missile_w // 2, by - missile_h // 2, missile_w, missile_h), border_radius=2)
+                    # Red warhead at front
+                    warhead_pts = [
+                        (bx - 2, by - missile_h // 2),
+                        (bx + 2, by - missile_h // 2),
+                        (bx, by - missile_h // 2 - 5)
+                    ]
+                    pygame.draw.polygon(screen, (200, 50, 50), warhead_pts)
+                    # Fins at back
+                    pygame.draw.polygon(screen, (150, 150, 150), [
+                        (bx - missile_w // 2, by),
+                        (bx - missile_w // 2 - 3, by + 3),
+                        (bx - missile_w // 2, by + 2)
+                    ])
+                    pygame.draw.polygon(screen, (150, 150, 150), [
+                        (bx + missile_w // 2, by),
+                        (bx + missile_w // 2 + 3, by + 3),
+                        (bx + missile_w // 2, by + 2)
+                    ])
+                    # Small trail flame
+                    flame_len = 4 + math.sin(time_offset * 20) * 2
+                    pygame.draw.line(screen, (255, 150, 50), (bx, by + 2), (bx, by + 2 + flame_len), 2)
 
             # Speed lines
             draw_speed_lines(screen, WIDTH, HEIGHT, selected_orientation, current_speed, time_offset)
@@ -1561,41 +1423,99 @@ def main():
             speed_text = font_normal.render(f"{round(current_speed, 1)}x", True, (160, 180, 230))
             screen.blit(speed_text, (150, status_y + 7))
 
-            effect_x = WIDTH - 140
-            effect_y = status_y
-            if speed_boost_timer > 0:
-                effect_bg = pygame.Surface((130, 28), pygame.SRCALPHA)
-                pygame.draw.rect(effect_bg, (20, 50, 120, 200), effect_bg.get_rect(), border_radius=8)
-                pygame.draw.rect(effect_bg, (96, 165, 250, 150), effect_bg.get_rect(), 1, border_radius=8)
-                screen.blit(effect_bg, (effect_x, effect_y))
-                boost_text = font_small.render("SPEED UP!", True, (150, 200, 255))
-                screen.blit(boost_text, (effect_x + 10, effect_y + 4))
-                effect_y += 35
-            elif speed_slow_timer > 0:
-                effect_bg = pygame.Surface((120, 28), pygame.SRCALPHA)
-                pygame.draw.rect(effect_bg, (10, 60, 50, 200), effect_bg.get_rect(), border_radius=8)
-                pygame.draw.rect(effect_bg, (52, 211, 153, 150), effect_bg.get_rect(), 1, border_radius=8)
-                screen.blit(effect_bg, (effect_x, effect_y))
-                slow_text = font_small.render("SLOW DOWN", True, (100, 230, 180))
-                screen.blit(slow_text, (effect_x + 10, effect_y + 4))
-                effect_y += 35
+            # Level pill
+            level_bg = pygame.Surface((90, 35), pygame.SRCALPHA)
+            pygame.draw.rect(level_bg, (10, 10, 25, 180), level_bg.get_rect(), border_radius=10)
+            pygame.draw.rect(level_bg, (*WARNING_COLOR, 100), level_bg.get_rect(), 1, border_radius=10)
+            screen.blit(level_bg, (250, status_y + 2))
 
-            if shrink_timer > 0:
-                effect_bg = pygame.Surface((110, 28), pygame.SRCALPHA)
-                pygame.draw.rect(effect_bg, (15, 50, 30, 200), effect_bg.get_rect(), border_radius=8)
-                pygame.draw.rect(effect_bg, (74, 222, 128, 150), effect_bg.get_rect(), 1, border_radius=8)
-                screen.blit(effect_bg, (effect_x, effect_y))
-                shrink_text = font_small.render("SHRINK!", True, (120, 240, 160))
-                screen.blit(shrink_text, (effect_x + 10, effect_y + 4))
-                effect_y += 35
+            level_text = font_normal.render(f"LVL {current_level}", True, (255, 200, 120))
+            screen.blit(level_text, (260, status_y + 7))
 
-            if machinegun_timer > 0:
-                effect_bg = pygame.Surface((140, 28), pygame.SRCALPHA)
-                pygame.draw.rect(effect_bg, (80, 30, 10, 200), effect_bg.get_rect(), border_radius=8)
-                pygame.draw.rect(effect_bg, (255, 160, 80, 150), effect_bg.get_rect(), 1, border_radius=8)
-                screen.blit(effect_bg, (effect_x, effect_y))
-                gun_text = font_small.render("MACHINE GUN!", True, (255, 180, 100))
-                screen.blit(gun_text, (effect_x + 10, effect_y + 4))
+            # Level timer
+            level_time_left = max(0, (LEVEL_DURATION - level_elapsed) / 1000)
+            timer_bg = pygame.Surface((110, 35), pygame.SRCALPHA)
+            pygame.draw.rect(timer_bg, (10, 10, 25, 180), timer_bg.get_rect(), border_radius=10)
+            pygame.draw.rect(timer_bg, (*SUCCESS_COLOR, 100), timer_bg.get_rect(), 1, border_radius=10)
+            screen.blit(timer_bg, (350, status_y + 2))
+
+            timer_color = (120, 240, 160) if level_time_left > 10 else (255, 150, 150)
+            timer_text = font_normal.render(f"{int(level_time_left)}s", True, timer_color)
+            screen.blit(timer_text, (360, status_y + 7))
+
+        elif game_state == LEVEL_TRANSITION:
+            particle_system.update()
+            
+            transition_elapsed = pygame.time.get_ticks() - transition_start_ticks
+            
+            # Continue showing game state (frozen)
+            for obstacle in obstacles:
+                draw_obstacle(obstacle[2], int(obstacle[0]), int(obstacle[1]), obstacle_size, OBSTACLE_GLOW_COLORS[obstacle[2]], time_offset * 0.1, time_offset)
+            
+            draw_player_trail(screen, player_trail, selected_role, PLAYER_COLORS[selected_role], PLAYER_GLOW_COLORS[selected_role])
+            draw_player(selected_role, PLAYER_COLORS[selected_role], int(player_x + (original_player_size - player_size) // 2), int(player_y + (original_player_size - player_size) // 2), int(player_size), PLAYER_GLOW_COLORS[selected_role], time_offset * 0.15)
+            
+            particle_system.draw(screen)
+            
+            # Dark overlay
+            overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+            overlay_alpha = int(min(180, transition_elapsed * 0.1))
+            overlay.fill((0, 0, 10, overlay_alpha))
+            screen.blit(overlay, (0, 0))
+            
+            # Panel showing level stats
+            panel_w, panel_h = 320, 350
+            panel_rect = pygame.Rect(WIDTH // 2 - panel_w // 2, HEIGHT // 2 - panel_h // 2, panel_w, panel_h)
+            
+            panel_surface = pygame.Surface((panel_w, panel_h), pygame.SRCALPHA)
+            pygame.draw.rect(panel_surface, (10, 10, 25, 230), panel_surface.get_rect(), border_radius=24)
+            screen.blit(panel_surface, (panel_rect.x, panel_rect.y))
+            
+            # Success border
+            pygame.draw.rect(screen, SUCCESS_COLOR, panel_rect, 2, border_radius=24)
+            draw_glow(screen, SUCCESS_COLOR, panel_rect, 20, 25)
+            
+            # Level complete text
+            level_complete_text = font_header.render(f"LEVEL {current_level} COMPLETE!", True, SUCCESS_COLOR)
+            screen.blit(level_complete_text, (WIDTH // 2 - level_complete_text.get_width() // 2, panel_rect.y + 25))
+            
+            # Stats
+            stats_start_y = panel_rect.y + 80
+            line_height = 40
+            
+            stat_names = ["Obstacles Passed:", "Obstacles Destroyed:"]
+            stat_values = [level_obstacles_passed, level_obstacles_destroyed]
+            stat_colors = [(100, 200, 255), (255, 180, 100)]
+            
+            for i, (name, value, color) in enumerate(zip(stat_names, stat_values, stat_colors)):
+                name_text = font_normal.render(name, True, (150, 160, 190))
+                screen.blit(name_text, (panel_rect.x + 30, stats_start_y + i * line_height))
+                
+                value_text = font_header.render(str(value), True, color)
+                screen.blit(value_text, (panel_rect.right - 30 - value_text.get_width(), stats_start_y + i * line_height))
+            
+            # Countdown
+            countdown_remaining = COUNTDOWN_DURATION - transition_elapsed
+            if countdown_remaining > 0:
+                countdown_num = math.ceil(countdown_remaining / 1000)
+                if countdown_num > 0:
+                    countdown_scale = 1.0 + (1.0 - countdown_remaining / COUNTDOWN_DURATION) * 0.3
+                    countdown_text = font_title.render(str(countdown_num), True, SUCCESS_COLOR)
+                    
+                    cw = int(countdown_text.get_width() * countdown_scale)
+                    ch = int(countdown_text.get_height() * countdown_scale)
+                    
+                    if countdown_num > 0:
+                        scaled_countdown = pygame.transform.scale(countdown_text, (cw, ch))
+                        screen.blit(scaled_countdown, (WIDTH // 2 - cw // 2, stats_start_y + len(stat_names) * line_height + 20))
+            else:
+                # Start next level
+                current_level += 1
+                level_start_ticks = pygame.time.get_ticks()
+                level_obstacles_passed = 0
+                level_obstacles_destroyed = 0
+                obstacles = []
+                game_state = PLAYING
 
         elif game_state == GAME_OVER:
             particle_system.update()
@@ -1662,20 +1582,26 @@ def main():
                     dt_surface.set_alpha(text_alpha)
                     screen.blit(dt_surface, (WIDTH // 2 - diff_text.get_width() // 2, HEIGHT // 2 - 5))
 
+                    level_text = font_normal.render(f"Level Reached: {current_level}", True, (255, 200, 120))
+                    lt_surface = pygame.Surface(level_text.get_size(), pygame.SRCALPHA)
+                    lt_surface.blit(level_text, (0, 0))
+                    lt_surface.set_alpha(text_alpha)
+                    screen.blit(lt_surface, (WIDTH // 2 - level_text.get_width() // 2, HEIGHT // 2 + 20))
+
                 if anim_progress >= 1.0:
-                    restart_button.rect.y = HEIGHT // 2 + 20
-                    menu_button.rect.y = HEIGHT // 2 + 80
+                    restart_button.rect.y = HEIGHT // 2 + 40
+                    menu_button.rect.y = HEIGHT // 2 + 100
                     restart_button.update()
                     menu_button.update()
                     restart_button.draw(screen)
                     menu_button.draw(screen)
 
                     if qualifies_for_leaderboard:
-                        save_score_button.rect.y = HEIGHT // 2 + 140
+                        save_score_button.rect.y = HEIGHT // 2 + 160
                         save_score_button.update()
                         save_score_button.draw(screen)
                     else:
-                        scores_gameover_button.rect.y = HEIGHT // 2 + 140
+                        scores_gameover_button.rect.y = HEIGHT // 2 + 160
                         scores_gameover_button.update()
                         scores_gameover_button.draw(screen)
 
