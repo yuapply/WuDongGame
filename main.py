@@ -1329,57 +1329,17 @@ def main():
                 bx = int(b[0] + shake_offset_x)
                 by = int(b[1] + shake_offset_y)
                 
-                if selected_role == "dragon":
-                    # Fire bullet - animated flame
-                    fire_flicker = math.sin(time_offset * 15) * 2 + 5
-                    # Outer glow
-                    glow_surf = pygame.Surface((20, 20), pygame.SRCALPHA)
-                    pygame.draw.circle(glow_surf, (255, 100, 0, 100), (10, 10), 8)
-                    screen.blit(glow_surf, (bx - 10, by - 10))
-                    # Flame core
-                    pygame.draw.circle(screen, (255, 150, 0), (bx, by), int(3 + fire_flicker * 0.2))
-                    pygame.draw.circle(screen, (255, 220, 50), (bx, by), int(2 + fire_flicker * 0.15))
-                    
-                elif selected_role == "spaceship":
-                    # Blue x-ray bullet - electric effect
-                    # Outer blue glow with pulsing
-                    pulse_size = 6 + math.sin(time_offset * 10) * 2
-                    glow_surf = pygame.Surface((20, 20), pygame.SRCALPHA)
-                    pygame.draw.circle(glow_surf, (0, 150, 255, 80), (10, 10), int(pulse_size))
-                    screen.blit(glow_surf, (bx - 10, by - 10))
-                    # Inner electric core
-                    core_surf = pygame.Surface((12, 12), pygame.SRCALPHA)
-                    pygame.draw.circle(core_surf, (100, 200, 255, 200), (6, 6), 4)
-                    pygame.draw.circle(core_surf, (200, 230, 255, 255), (6, 6), 2)
-                    screen.blit(core_surf, (bx - 6, by - 6))
-                    
-                elif selected_role == "aeroplane":
-                    # Missile - cylindrical with warhead
-                    # Missile body (gray cylinder)
-                    missile_w = 12
-                    missile_h = 4
-                    pygame.draw.rect(screen, (180, 180, 180), (bx - missile_w // 2, by - missile_h // 2, missile_w, missile_h), border_radius=2)
-                    # Red warhead at front
-                    warhead_pts = [
-                        (bx - 2, by - missile_h // 2),
-                        (bx + 2, by - missile_h // 2),
-                        (bx, by - missile_h // 2 - 5)
-                    ]
-                    pygame.draw.polygon(screen, (200, 50, 50), warhead_pts)
-                    # Fins at back
-                    pygame.draw.polygon(screen, (150, 150, 150), [
-                        (bx - missile_w // 2, by),
-                        (bx - missile_w // 2 - 3, by + 3),
-                        (bx - missile_w // 2, by + 2)
-                    ])
-                    pygame.draw.polygon(screen, (150, 150, 150), [
-                        (bx + missile_w // 2, by),
-                        (bx + missile_w // 2 + 3, by + 3),
-                        (bx + missile_w // 2, by + 2)
-                    ])
-                    # Small trail flame
-                    flame_len = 4 + math.sin(time_offset * 20) * 2
-                    pygame.draw.line(screen, (255, 150, 50), (bx, by + 2), (bx, by + 2 + flame_len), 2)
+                # Blue bullets for all roles - bigger size
+                # Outer blue glow
+                glow_surf = pygame.Surface((24, 24), pygame.SRCALPHA)
+                pygame.draw.circle(glow_surf, (0, 150, 255, 100), (12, 12), 12)
+                screen.blit(glow_surf, (bx - 12, by - 12))
+                
+                # Inner bright core
+                core_surf = pygame.Surface((16, 16), pygame.SRCALPHA)
+                pygame.draw.circle(core_surf, (100, 200, 255, 200), (8, 8), 6)
+                pygame.draw.circle(core_surf, (200, 230, 255, 255), (8, 8), 4)
+                screen.blit(core_surf, (bx - 8, by - 8))
 
             # Speed lines
             draw_speed_lines(screen, WIDTH, HEIGHT, selected_orientation, current_speed, time_offset)
