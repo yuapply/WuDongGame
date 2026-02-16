@@ -84,6 +84,7 @@ GAME_OVER = "game_over"
 ENTER_NAME = "enter_name"
 LEADERBOARD = "leaderboard"
 LEVEL_TRANSITION = "level_transition"
+BOSS_DEFEATED = "boss_defeated"
 
 # --- Score persistence ---
 SCORES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scores.json")
@@ -701,6 +702,94 @@ def draw_speed_lines(surface, width, height, orientation, speed, time_offset):
     surface.blit(line_surf, (0, 0))
 
 
+def draw_boss(x, y, size, health, max_health, time_offset):
+    """Draw the big turtle boss with health indicator."""
+    boss_color = OBSTACLE_COLORS[OBSTACLE_TURTLE]
+    boss_glow = OBSTACLE_GLOW_COLORS[OBSTACLE_TURTLE]
+    
+    # Glow effect
+    pulse_size = 3 + math.sin(time_offset * 0.1) * 2
+    glow_rect = pygame.Rect(x - pulse_size, y - pulse_size, size + pulse_size * 2, size + pulse_size * 2)
+    for i in range(4):
+        r = 15 + i * 6
+        alpha = max(5, 50 - i * 12)
+        gs = pygame.Surface((glow_rect.width + r * 2, glow_rect.height + r * 2), pygame.SRCALPHA)
+        pygame.draw.rect(gs, (*boss_glow, alpha), gs.get_rect(), border_radius=r + 5)
+        screen.blit(gs, (glow_rect.x - r, glow_rect.y - r))
+    
+    # Main body (big ellipse)
+    body_rect = pygame.Rect(x + 5, y + 10, size - 10, size - 20)
+    pygame.draw.ellipse(screen, boss_color, body_rect)
+    
+    # Shell pattern
+    shell_color = tuple(max(0, c - 40) for c in boss_color)
+    pygame.draw.ellipse(screen, shell_color, (x + size // 4, y + size // 3, size // 2, size // 2))
+    
+    # Eyes (angry looking)
+    eye_size = size // 10
+    eye_offset = size // 4
+    pygame.draw.circle(screen, (255, 100, 100), (x + eye_offset, y + size // 4), eye_size)
+    pygame.draw.circle(screen, (255, 100, 100), (x + size - eye_offset, y + size // 4), eye_size)
+    # Pupils
+    pygame.draw.circle(screen, (50, 0, 0), (x + eye_offset, y + size // 4), eye_size // 2)
+    pygame.draw.circle(screen, (50, 0, 0), (x + size - eye_offset, y + size // 4), eye_size // 2)
+    
+    # Mouth
+    pygame.draw.arc(screen, (100, 50, 50), (x + size // 4, y + size // 2, size // 2, size // 4), 0, math.pi, 3)
+
+
+def draw_boss_projectile(x, y, size, time_offset):
+    """Draw boss projectile (circle block)."""
+    color = OBSTACLE_COLORS[OBSTACLE_TURTLE]
+    glow_color = OBSTACLE_GLOW_COLORS[OBSTACLE_TURTLE]
+    
+    # Glow
+    pulse = 2 + math.sin(time_offset * 0.2) * 1
+    gs = pygame.Surface((size + pulse * 4, size + pulse * 4), pygame.SRCALPHA)
+    pygame.draw.circle(gs, (*glow_color, 80), (size // 2 + pulse * 2, size // 2 + pulse * 2), size // 2 + pulse)
+    screen.blit(gs, (x - pulse * 2, y - pulse * 2))
+    
+    # Main circle
+    pygame.draw.circle(screen, color, (x + size // 2, y + size // 2), size // 2)
+    
+    # Inner pattern
+    inner_color = tuple(max(0, c - 50) for c in color)
+    pygame.draw.circle(screen, inner_color, (x + size // 2, y + size // 2), size // 3)
+
+
+def draw_boss_health_bar(x, y, width, height, health, max_health):
+    """Draw boss health bar."""
+    # Background
+    bg_rect = pygame.Rect(x, y, width, height)
+    bg_surface = pygame.Surface((width, height), pygame.SRCALPHA)
+    pygame.draw.rect(bg_surface, (20, 20, 40, 200), bg_rect, border_radius=10)
+    screen.blit(bg_surface, (x, y))
+    
+    # Border
+    pygame.draw.rect(screen, (100, 50, 150), bg_rect, 2, border_radius=10)
+    
+    # Health fill
+    health_width = int((health / max_health) * (width - 8))
+    if health_width > 0:
+        fill_rect = pygame.Rect(x + 4, y + 4, health_width, height - 8)
+        # Color gradient based on health
+        if health > max_health * 0.5:
+            health_color = (100, 200, 100)
+        elif health > max_health * 0.25:
+            health_color = (200, 180, 50)
+        else:
+            health_color = (200, 50, 50)
+        pygame.draw.rect(screen, health_color, fill_rect, border_radius=6)
+    
+    # Boss label
+    boss_text = font_small.render("BOSS", True, (200, 200, 255))
+    screen.blit(boss_text, (x + 10, y + 7))
+    
+    # Health text
+    health_text = font_small.render(f"{health}/{max_health}", True, (200, 200, 255))
+    screen.blit(health_text, (x + width - health_text.get_width() - 10, y + 7))
+
+
 def draw_player_trail(surface, trail, shape, color, glow_color):
     """Draw fading trail copies behind the player."""
     n = len(trail)
@@ -807,6 +896,18 @@ def main():
 
     # Last score for popup tracking
     last_obstacle_count = 0
+
+    # Boss state
+    BOSS_TRIGGER_TIME = 60000
+    boss_active = False
+    boss_health = 0
+    boss_max_health = 200
+    boss_size = 120
+    boss_x = 0
+    boss_y = 0
+    boss_projectiles = []
+    boss_attack_timer = 0
+    boss_attack_interval = 15
 
     difficulty_settings = {
         1: {"blocks": 1, "base_speed": 3, "spawn_rate": 60, "name": "Easy"},
@@ -926,6 +1027,10 @@ def main():
                         level_obstacles_destroyed = 0
                         transition_start_ticks = 0
                         player_name = ""
+                        boss_active = False
+                        boss_health = 0
+                        boss_projectiles = []
+                        boss_attack_timer = 0
                         game_state = PLAYING
 
                     if scores_menu_button.is_clicked():
@@ -946,6 +1051,8 @@ def main():
                         start_ticks = pygame.time.get_ticks()
                         level_start_ticks = pygame.time.get_ticks()
                         current_level = 1
+                        spawn_timer = 0
+                        current_speed = 0
                         speed_boost_timer = 0
                         speed_slow_timer = 0
                         shrink_timer = 0
@@ -963,6 +1070,10 @@ def main():
                         level_obstacles_destroyed = 0
                         transition_start_ticks = 0
                         player_name = ""
+                        boss_active = False
+                        boss_health = 0
+                        boss_projectiles = []
+                        boss_attack_timer = 0
                         game_state = PLAYING
                     elif menu_button.is_clicked():
                         reset_screen("vertical")
@@ -1025,6 +1136,8 @@ def main():
                             start_ticks = pygame.time.get_ticks()
                             level_start_ticks = pygame.time.get_ticks()
                             current_level = 1
+                            spawn_timer = 0
+                            current_speed = 0
                             speed_boost_timer = 0
                             speed_slow_timer = 0
                             shrink_timer = 0
@@ -1032,17 +1145,21 @@ def main():
                             bullets = []
                             bullet_cooldown = 0
                             player_size = original_player_size
-                        particle_system = ParticleSystem()
-                        player_trail = []
-                        score_popups = []
-                        last_obstacle_count = 0
-                        shake_intensity = 0
-                        game_over_timer = 0
-                        level_obstacles_passed = 0
-                        level_obstacles_destroyed = 0
-                        transition_start_ticks = 0
-                        player_name = ""
-                        game_state = PLAYING
+                            particle_system = ParticleSystem()
+                            player_trail = []
+                            score_popups = []
+                            last_obstacle_count = 0
+                            shake_intensity = 0
+                            game_over_timer = 0
+                            level_obstacles_passed = 0
+                            level_obstacles_destroyed = 0
+                            transition_start_ticks = 0
+                            player_name = ""
+                            boss_active = False
+                            boss_health = 0
+                            boss_projectiles = []
+                            boss_attack_timer = 0
+                            game_state = PLAYING
 
             if event.type == pygame.KEYDOWN and game_state == ENTER_NAME:
                 if event.key == pygame.K_RETURN:
@@ -1160,7 +1277,27 @@ def main():
             elapsed_seconds = (current_time - start_ticks) / 1000
             
             level_elapsed = current_time - level_start_ticks
-            if level_elapsed >= LEVEL_DURATION:
+            
+            # Boss trigger logic
+            if not boss_active and level_elapsed >= BOSS_TRIGGER_TIME:
+                boss_active = True
+                boss_health = boss_max_health
+                boss_projectiles = []
+                boss_attack_timer = 0
+                if selected_orientation == "vertical":
+                    boss_x = (WIDTH - boss_size) // 2
+                    boss_y = 120
+                else:
+                    boss_x = WIDTH - boss_size - 20
+                    boss_y = (HEIGHT - boss_size) // 2
+            
+            # Boss defeated check
+            if boss_active and boss_health <= 0:
+                boss_active = False
+                transition_start_ticks = current_time
+                game_state = BOSS_DEFEATED
+            
+            if level_elapsed >= LEVEL_DURATION and not boss_active:
                 transition_start_ticks = current_time
                 game_state = LEVEL_TRANSITION
 
@@ -1195,10 +1332,28 @@ def main():
                 spawn_timer += 1
                 if spawn_timer >= spawn_interval:
                     spawn_timer = 0
-                    for _ in range(settings["blocks"]):
-                        obstacle_x = random.randint(0, WIDTH - obstacle_size)
-                        obs_type = random.choices([OBSTACLE_SQUARE, OBSTACLE_BIRD, OBSTACLE_TURTLE, OBSTACLE_MUSHROOM, OBSTACLE_MACHINEGUN], weights=obstacle_weights)[0]
-                        obstacles.append([obstacle_x, -obstacle_size, obs_type])
+                    if boss_active:
+                        # Boss mode: spawn projectiles and occasional machinegun
+                        boss_attack_timer += 1
+                        if boss_attack_timer >= boss_attack_interval:
+                            boss_attack_timer = 0
+                            # Spawn multiple boss projectiles
+                            proj_size = 25
+                            # Spawn 3 projectiles spread out
+                            offsets = [-40, 0, 40]
+                            for offset in offsets:
+                                boss_projectiles.append([boss_x + boss_size // 2 - proj_size // 2 + offset, boss_y + boss_size, proj_size, 4])
+                        
+                        # Occasionally spawn machinegun power-up
+                        if random.random() < 0.1:
+                            mg_x = random.randint(0, WIDTH - obstacle_size)
+                            obstacles.append([mg_x, -obstacle_size, OBSTACLE_MACHINEGUN])
+                    else:
+                        # Normal mode
+                        for _ in range(settings["blocks"]):
+                            obstacle_x = random.randint(0, WIDTH - obstacle_size)
+                            obs_type = random.choices([OBSTACLE_SQUARE, OBSTACLE_BIRD, OBSTACLE_TURTLE, OBSTACLE_MUSHROOM, OBSTACLE_MACHINEGUN], weights=obstacle_weights)[0]
+                            obstacles.append([obstacle_x, -obstacle_size, obs_type])
 
                 prev_count = len(obstacles)
                 for obstacle in obstacles:
@@ -1210,6 +1365,12 @@ def main():
                     level_obstacles_passed += passed
                     if len(score_popups) < 5:
                         score_popups.append(ScorePopup(player_x, player_y - 30, f"+{passed * 10}"))
+                
+                # Update boss projectiles
+                for proj in boss_projectiles[:]:
+                    proj[1] += proj[3]
+                    if proj[1] > HEIGHT:
+                        boss_projectiles.remove(proj)
 
             else:
                 if keys[pygame.K_UP] and player_y > 0:
@@ -1220,10 +1381,28 @@ def main():
                 spawn_timer += 1
                 if spawn_timer >= spawn_interval:
                     spawn_timer = 0
-                    for _ in range(settings["blocks"]):
-                        obstacle_y = random.randint(0, HEIGHT - obstacle_size)
-                        obs_type = random.choices([OBSTACLE_SQUARE, OBSTACLE_BIRD, OBSTACLE_TURTLE, OBSTACLE_MUSHROOM, OBSTACLE_MACHINEGUN], weights=obstacle_weights)[0]
-                        obstacles.append([WIDTH, obstacle_y, obs_type])
+                    if boss_active:
+                        # Boss mode: spawn projectiles and occasional machinegun
+                        boss_attack_timer += 1
+                        if boss_attack_timer >= boss_attack_interval:
+                            boss_attack_timer = 0
+                            # Spawn multiple boss projectiles
+                            proj_size = 25
+                            # Spawn 3 projectiles spread out
+                            offsets = [-40, 0, 40]
+                            for offset in offsets:
+                                boss_projectiles.append([boss_x - proj_size, boss_y + boss_size // 2 - proj_size // 2 + offset, proj_size, 4])
+                        
+                        # Occasionally spawn machinegun power-up
+                        if random.random() < 0.1:
+                            mg_y = random.randint(0, HEIGHT - obstacle_size)
+                            obstacles.append([WIDTH, mg_y, OBSTACLE_MACHINEGUN])
+                    else:
+                        # Normal mode
+                        for _ in range(settings["blocks"]):
+                            obstacle_y = random.randint(0, HEIGHT - obstacle_size)
+                            obs_type = random.choices([OBSTACLE_SQUARE, OBSTACLE_BIRD, OBSTACLE_TURTLE, OBSTACLE_MUSHROOM, OBSTACLE_MACHINEGUN], weights=obstacle_weights)[0]
+                            obstacles.append([WIDTH, obstacle_y, obs_type])
 
                 prev_count = len(obstacles)
                 for obstacle in obstacles:
@@ -1235,6 +1414,12 @@ def main():
                     level_obstacles_passed += passed
                     if len(score_popups) < 5:
                         score_popups.append(ScorePopup(player_x + player_size, player_y, f"+{passed * 10}"))
+                
+                # Update boss projectiles
+                for proj in boss_projectiles[:]:
+                    proj[0] -= proj[3]
+                    if proj[0] < -50:
+                        boss_projectiles.remove(proj)
 
             size_offset = (original_player_size - player_size) // 2
             player_rect = pygame.Rect(player_x + size_offset, player_y + size_offset, player_size, player_size)
@@ -1277,6 +1462,17 @@ def main():
                         particle_system.emit(center_x, center_y, (255, 100, 30), count=15, size=6, glow=True, spread=4)
                         machinegun_timer = MACHINEGUN_DURATION
                         obstacles.remove(obstacle)
+
+            # Boss projectile collision with player
+            for proj in boss_projectiles[:]:
+                proj_rect = pygame.Rect(proj[0], proj[1], proj[2], proj[2])
+                if player_rect.colliderect(proj_rect):
+                    particle_system.emit(proj_rect.centerx, proj_rect.centery, DANGER_COLOR, count=20, size=6, glow=True, spread=5)
+                    shake_intensity = 10.0
+                    game_over_timer = 0
+                    qualifies_for_leaderboard = is_high_score(score)
+                    game_state = GAME_OVER
+                    break
 
             # --- Machinegun bullet logic ---
             dt = clock.get_time()
@@ -1324,6 +1520,20 @@ def main():
                             score_popups.append(ScorePopup(cx_hit, cy_hit - 20, "+20", (255, 200, 80)))
                             shake_intensity = max(shake_intensity, 3.0)
                             break
+            
+            # Bullet vs boss collision
+            if boss_active:
+                boss_rect = pygame.Rect(boss_x, boss_y, boss_size, boss_size)
+                for b in bullets[:]:
+                    bullet_rect = pygame.Rect(b[0] - 4, b[1] - 4, 8, 8)
+                    if bullet_rect.colliderect(boss_rect):
+                        bullets.remove(b)
+                        boss_health -= 1
+                        cx_hit = bullet_rect.centerx
+                        cy_hit = bullet_rect.centery
+                        particle_system.emit(cx_hit, cy_hit, (200, 100, 200), count=8, size=4, glow=True, spread=3)
+                        shake_intensity = max(shake_intensity, 2.0)
+            
             for b in bullets_hit:
                 if b in bullets:
                     bullets.remove(b)
@@ -1359,6 +1569,13 @@ def main():
             for obstacle in obstacles:
                 draw_obstacle(obstacle[2], int(obstacle[0] + shake_offset_x), int(obstacle[1] + shake_offset_y), obstacle_size, OBSTACLE_GLOW_COLORS[obstacle[2]], time_offset * 0.1, time_offset)
 
+            # Draw boss and boss projectiles if active
+            if boss_active:
+                draw_boss(boss_x + shake_offset_x, boss_y + shake_offset_y, boss_size, boss_health, boss_max_health, time_offset)
+                for proj in boss_projectiles:
+                    draw_boss_projectile(int(proj[0] + shake_offset_x), int(proj[1] + shake_offset_y), proj[2], time_offset)
+                draw_boss_health_bar(10, 60, WIDTH - 20, 35, boss_health, boss_max_health)
+
             particle_system.draw(screen)
 
             # Score popups
@@ -1367,7 +1584,8 @@ def main():
                 sp.draw(screen)
             score_popups = [sp for sp in score_popups if sp.is_alive()]
 
-            score = int(elapsed_seconds * 10)
+            if not boss_active:
+                score = int(elapsed_seconds * 10)
 
             # --- Dark neon HUD ---
             status_y = 15
@@ -1482,6 +1700,82 @@ def main():
                 level_obstacles_passed = 0
                 level_obstacles_destroyed = 0
                 obstacles = []
+                game_state = PLAYING
+
+        elif game_state == BOSS_DEFEATED:
+            particle_system.update()
+            
+            transition_elapsed = pygame.time.get_ticks() - transition_start_ticks
+            
+            # Continue showing game state (frozen)
+            for obstacle in obstacles:
+                draw_obstacle(obstacle[2], int(obstacle[0]), int(obstacle[1]), obstacle_size, OBSTACLE_GLOW_COLORS[obstacle[2]], time_offset * 0.1, time_offset)
+            
+            draw_player_trail(screen, player_trail, selected_role, PLAYER_COLORS[selected_role], PLAYER_GLOW_COLORS[selected_role])
+            draw_player(selected_role, PLAYER_COLORS[selected_role], int(player_x + (original_player_size - player_size) // 2), int(player_y + (original_player_size - player_size) // 2), int(player_size), PLAYER_GLOW_COLORS[selected_role], time_offset * 0.15)
+            
+            particle_system.draw(screen)
+            
+            # Dark overlay
+            overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+            overlay_alpha = int(min(180, transition_elapsed * 0.1))
+            overlay.fill((0, 0, 10, overlay_alpha))
+            screen.blit(overlay, (0, 0))
+            
+            # Panel showing boss defeat stats
+            panel_w, panel_h = 320, 350
+            panel_rect = pygame.Rect(WIDTH // 2 - panel_w // 2, HEIGHT // 2 - panel_h // 2, panel_w, panel_h)
+            
+            panel_surface = pygame.Surface((panel_w, panel_h), pygame.SRCALPHA)
+            pygame.draw.rect(panel_surface, (10, 10, 25, 230), panel_surface.get_rect(), border_radius=24)
+            screen.blit(panel_surface, (panel_rect.x, panel_rect.y))
+            
+            # Victory border
+            pygame.draw.rect(screen, SUCCESS_COLOR, panel_rect, 2, border_radius=24)
+            draw_glow(screen, SUCCESS_COLOR, panel_rect, 20, 25)
+            
+            # Boss defeated text
+            boss_defeated_text = font_header.render("BOSS DEFEATED!", True, SUCCESS_COLOR)
+            screen.blit(boss_defeated_text, (WIDTH // 2 - boss_defeated_text.get_width() // 2, panel_rect.y + 25))
+            
+            # Stats
+            stats_start_y = panel_rect.y + 80
+            line_height = 40
+            
+            stat_names = ["Obstacles Passed:", "Obstacles Destroyed:"]
+            stat_values = [level_obstacles_passed, level_obstacles_destroyed]
+            stat_colors = [(100, 200, 255), (255, 180, 100)]
+            
+            for i, (name, value, color) in enumerate(zip(stat_names, stat_values, stat_colors)):
+                name_text = font_normal.render(name, True, (150, 160, 190))
+                screen.blit(name_text, (panel_rect.x + 30, stats_start_y + i * line_height))
+                
+                value_text = font_header.render(str(value), True, color)
+                screen.blit(value_text, (panel_rect.right - 30 - value_text.get_width(), stats_start_y + i * line_height))
+            
+            # Countdown
+            countdown_remaining = COUNTDOWN_DURATION - transition_elapsed
+            if countdown_remaining > 0:
+                countdown_num = math.ceil(countdown_remaining / 1000)
+                if countdown_num > 0:
+                    countdown_scale = 1.0 + (1.0 - countdown_remaining / COUNTDOWN_DURATION) * 0.3
+                    countdown_text = font_title.render(str(countdown_num), True, SUCCESS_COLOR)
+                    
+                    cw = int(countdown_text.get_width() * countdown_scale)
+                    ch = int(countdown_text.get_height() * countdown_scale)
+                    
+                    if countdown_num > 0:
+                        scaled_countdown = pygame.transform.scale(countdown_text, (cw, ch))
+                        screen.blit(scaled_countdown, (WIDTH // 2 - cw // 2, stats_start_y + len(stat_names) * line_height + 20))
+            else:
+                # Start next level
+                current_level += 1
+                level_start_ticks = pygame.time.get_ticks()
+                level_obstacles_passed = 0
+                level_obstacles_destroyed = 0
+                obstacles = []
+                boss_projectiles = []
+                boss_active = False
                 game_state = PLAYING
 
         elif game_state == GAME_OVER:
