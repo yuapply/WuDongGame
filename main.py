@@ -435,7 +435,20 @@ def draw_glow(surface, color, rect, radius=15, intensity=50):
         surface.blit(glow_surface, (rect.x - r, rect.y - r))
 
 
-def draw_player(shape, color, x, y, size, glow_color=None, pulse=0, target_surface=None):
+def draw_player(shape, color, x, y, size, glow_color=None, pulse=0, target_surface=None, orientation="vertical"):
+    surf = target_surface if target_surface is not None else screen
+    
+    if orientation == "horizontal":
+        temp_surf = pygame.Surface((size, size), pygame.SRCALPHA)
+        draw_player_internal(shape, color, 0, 0, size, glow_color, pulse, temp_surf)
+        rotated_surf = pygame.transform.rotate(temp_surf, -90)
+        surf.blit(rotated_surf, (x, y))
+        return
+    
+    draw_player_internal(shape, color, x, y, size, glow_color, pulse, surf)
+
+
+def draw_player_internal(shape, color, x, y, size, glow_color=None, pulse=0, target_surface=None):
     surf = target_surface if target_surface is not None else screen
 
     pass  # No outer container/glow for player
@@ -605,7 +618,7 @@ def draw_player(shape, color, x, y, size, glow_color=None, pulse=0, target_surfa
         pygame.draw.circle(surf, BELLY_YELLOW, (int(cx + 12*s), int(y - 2*s + float_y)), int(4*s))
 
 
-def draw_obstacle(obstacle_type, x, y, size, glow_color=None, pulse=0, time_offset=0):
+def draw_obstacle(obstacle_type, x, y, size, glow_color=None, pulse=0, time_offset=0, orientation="vertical"):
     color = OBSTACLE_COLORS[obstacle_type]
 
     # Only draw outer container/glow for OBSTACLE_SQUARE
@@ -814,19 +827,34 @@ def draw_obstacle(obstacle_type, x, y, size, glow_color=None, pulse=0, time_offs
             pygame.draw.rect(screen, (232, 210, 255), bullet_rect, 1, border_radius=bullet_w)
 
     elif obstacle_type == OBSTACLE_STEEL_BAR:
-        bar_width = size
-        bar_height = 12
-        bar_rect = pygame.Rect(x, y, bar_width, bar_height)
-        pygame.draw.rect(screen, (80, 85, 95), bar_rect, border_radius=3)
-        pygame.draw.rect(screen, color, (x + 2, y + 2, bar_width - 4, bar_height - 4), border_radius=2)
-        highlight_rect = pygame.Rect(x + 4, y + 3, bar_width - 8, 3)
-        pygame.draw.rect(screen, (180, 190, 200), highlight_rect, border_radius=1)
-        pygame.draw.rect(screen, glow_color, bar_rect, 2, border_radius=3)
-        for i in range(3):
-            bolt_x = x + bar_width // 4 + i * bar_width // 4
-            bolt_y = y + bar_height // 2
-            pygame.draw.circle(screen, (60, 65, 75), (bolt_x, bolt_y), 3)
-            pygame.draw.circle(screen, (100, 105, 115), (bolt_x, bolt_y), 2)
+        if orientation == "vertical":
+            bar_width = size
+            bar_height = 12
+            bar_rect = pygame.Rect(x, y, bar_width, bar_height)
+            pygame.draw.rect(screen, (80, 85, 95), bar_rect, border_radius=3)
+            pygame.draw.rect(screen, color, (x + 2, y + 2, bar_width - 4, bar_height - 4), border_radius=2)
+            highlight_rect = pygame.Rect(x + 4, y + 3, bar_width - 8, 3)
+            pygame.draw.rect(screen, (180, 190, 200), highlight_rect, border_radius=1)
+            pygame.draw.rect(screen, glow_color, bar_rect, 2, border_radius=3)
+            for i in range(3):
+                bolt_x = x + bar_width // 4 + i * bar_width // 4
+                bolt_y = y + bar_height // 2
+                pygame.draw.circle(screen, (60, 65, 75), (bolt_x, bolt_y), 3)
+                pygame.draw.circle(screen, (100, 105, 115), (bolt_x, bolt_y), 2)
+        else:
+            bar_width = 12
+            bar_height = size
+            bar_rect = pygame.Rect(x, y, bar_width, bar_height)
+            pygame.draw.rect(screen, (80, 85, 95), bar_rect, border_radius=3)
+            pygame.draw.rect(screen, color, (x + 2, y + 2, bar_width - 4, bar_height - 4), border_radius=2)
+            highlight_rect = pygame.Rect(x + 3, y + 4, 3, bar_height - 8)
+            pygame.draw.rect(screen, (180, 190, 200), highlight_rect, border_radius=1)
+            pygame.draw.rect(screen, glow_color, bar_rect, 2, border_radius=3)
+            for i in range(3):
+                bolt_x = x + bar_width // 2
+                bolt_y = y + bar_height // 4 + i * bar_height // 4
+                pygame.draw.circle(screen, (60, 65, 75), (bolt_x, bolt_y), 3)
+                pygame.draw.circle(screen, (100, 105, 115), (bolt_x, bolt_y), 2)
 
     elif obstacle_type == OBSTACLE_XRAY_GUN:
         cx, cy = x + size // 2, y + size // 2
@@ -1899,12 +1927,12 @@ def main():
                             if obs_type == OBSTACLE_SQUARE:
                                 obs_sz = random.choice([30, 40, 50, 60])
                             elif obs_type == OBSTACLE_STEEL_BAR:
-                                min_width = WIDTH // 5
-                                max_width = WIDTH // 3
+                                min_width = HEIGHT // 5
+                                max_width = HEIGHT // 3
                                 obs_sz = random.randint(min_width, max_width)
                             else:
                                 obs_sz = obstacle_size
-                            obstacle_y = random.randint(0, HEIGHT - 12)
+                            obstacle_y = random.randint(0, HEIGHT - obs_sz if obs_type == OBSTACLE_STEEL_BAR else HEIGHT - 12)
                             obstacles.append([WIDTH, obstacle_y, obs_type, obs_sz])
 
                 prev_count = len(obstacles)
@@ -1943,7 +1971,10 @@ def main():
                     enemy_rect = pygame.Rect(obstacle[0] + hitbox_inset, obstacle[1] + hitbox_inset,
                                              obs_sz - hitbox_inset * 2, obs_sz - hitbox_inset * 2)
                 elif obs_type == OBSTACLE_STEEL_BAR:
-                    enemy_rect = pygame.Rect(obstacle[0], obstacle[1], obs_sz, 12)
+                    if selected_orientation == "vertical":
+                        enemy_rect = pygame.Rect(obstacle[0], obstacle[1], obs_sz, 12)
+                    else:
+                        enemy_rect = pygame.Rect(obstacle[0], obstacle[1], 12, obs_sz)
                 else:
                     enemy_rect = pygame.Rect(obstacle[0], obstacle[1], obs_sz, obs_sz)
 
@@ -2049,7 +2080,10 @@ def main():
                         if obs_type == OBSTACLE_SQUARE:
                             obs_rect = pygame.Rect(obs[0], obs[1], obs[3], obs[3])
                         else:
-                            obs_rect = pygame.Rect(obs[0], obs[1], obs[3], 12)
+                            if selected_orientation == "vertical":
+                                obs_rect = pygame.Rect(obs[0], obs[1], obs[3], 12)
+                            else:
+                                obs_rect = pygame.Rect(obs[0], obs[1], 12, obs[3])
                         
                         if xray_beam_rect.colliderect(obs_rect):
                             level_obstacles_destroyed += 1
@@ -2175,10 +2209,10 @@ def main():
             # Player trail
             draw_player_trail(screen, player_trail, selected_role, PLAYER_COLORS[selected_role], PLAYER_GLOW_COLORS[selected_role])
 
-            draw_player(selected_role, PLAYER_COLORS[selected_role], int(player_x + size_offset + shake_offset_x), int(player_y + size_offset + shake_offset_y), int(player_size), PLAYER_GLOW_COLORS[selected_role], time_offset * 0.15)
+            draw_player(selected_role, PLAYER_COLORS[selected_role], int(player_x + size_offset + shake_offset_x), int(player_y + size_offset + shake_offset_y), int(player_size), PLAYER_GLOW_COLORS[selected_role], time_offset * 0.15, None, selected_orientation)
 
             for obstacle in obstacles:
-                draw_obstacle(obstacle[2], int(obstacle[0] + shake_offset_x), int(obstacle[1] + shake_offset_y), obstacle[3], OBSTACLE_GLOW_COLORS[obstacle[2]], time_offset * 0.1, time_offset)
+                draw_obstacle(obstacle[2], int(obstacle[0] + shake_offset_x), int(obstacle[1] + shake_offset_y), obstacle[3], OBSTACLE_GLOW_COLORS[obstacle[2]], time_offset * 0.1, time_offset, selected_orientation)
 
             # Draw boss and boss projectiles if active
             if boss_active:
@@ -2246,10 +2280,10 @@ def main():
             
             # Continue showing game state (frozen)
             for obstacle in obstacles:
-                draw_obstacle(obstacle[2], int(obstacle[0]), int(obstacle[1]), obstacle[3], OBSTACLE_GLOW_COLORS[obstacle[2]], time_offset * 0.1, time_offset)
+                draw_obstacle(obstacle[2], int(obstacle[0]), int(obstacle[1]), obstacle[3], OBSTACLE_GLOW_COLORS[obstacle[2]], time_offset * 0.1, time_offset, selected_orientation)
             
             draw_player_trail(screen, player_trail, selected_role, PLAYER_COLORS[selected_role], PLAYER_GLOW_COLORS[selected_role])
-            draw_player(selected_role, PLAYER_COLORS[selected_role], int(player_x + (original_player_size - player_size) // 2), int(player_y + (original_player_size - player_size) // 2), int(player_size), PLAYER_GLOW_COLORS[selected_role], time_offset * 0.15)
+            draw_player(selected_role, PLAYER_COLORS[selected_role], int(player_x + (original_player_size - player_size) // 2), int(player_y + (original_player_size - player_size) // 2), int(player_size), PLAYER_GLOW_COLORS[selected_role], time_offset * 0.15, None, selected_orientation)
             
             particle_system.draw(screen)
             
@@ -2320,10 +2354,10 @@ def main():
             
             # Continue showing game state (frozen)
             for obstacle in obstacles:
-                draw_obstacle(obstacle[2], int(obstacle[0]), int(obstacle[1]), obstacle[3], OBSTACLE_GLOW_COLORS[obstacle[2]], time_offset * 0.1, time_offset)
+                draw_obstacle(obstacle[2], int(obstacle[0]), int(obstacle[1]), obstacle[3], OBSTACLE_GLOW_COLORS[obstacle[2]], time_offset * 0.1, time_offset, selected_orientation)
             
             draw_player_trail(screen, player_trail, selected_role, PLAYER_COLORS[selected_role], PLAYER_GLOW_COLORS[selected_role])
-            draw_player(selected_role, PLAYER_COLORS[selected_role], int(player_x + (original_player_size - player_size) // 2), int(player_y + (original_player_size - player_size) // 2), int(player_size), PLAYER_GLOW_COLORS[selected_role], time_offset * 0.15)
+            draw_player(selected_role, PLAYER_COLORS[selected_role], int(player_x + (original_player_size - player_size) // 2), int(player_y + (original_player_size - player_size) // 2), int(player_size), PLAYER_GLOW_COLORS[selected_role], time_offset * 0.15, None, selected_orientation)
             
             particle_system.draw(screen)
             
@@ -2414,7 +2448,7 @@ def main():
 
             # Draw remaining obstacles with shake
             for obstacle in obstacles:
-                draw_obstacle(obstacle[2], int(obstacle[0] + shake_offset_x), int(obstacle[1] + shake_offset_y), obstacle[3], OBSTACLE_GLOW_COLORS[obstacle[2]], time_offset * 0.1, time_offset)
+                draw_obstacle(obstacle[2], int(obstacle[0] + shake_offset_x), int(obstacle[1] + shake_offset_y), obstacle[3], OBSTACLE_GLOW_COLORS[obstacle[2]], time_offset * 0.1, time_offset, selected_orientation)
 
             particle_system.draw(screen)
 
