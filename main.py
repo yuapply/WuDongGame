@@ -55,6 +55,7 @@ OBSTACLE_MUSHROOM = "mushroom"
 OBSTACLE_MACHINEGUN = "machinegun"
 OBSTACLE_SHOTGUN = "shotgun"
 OBSTACLE_STEEL_BAR = "steel_bar"
+OBSTACLE_XRAY_GUN = "xray_gun"
 
 OBSTACLE_COLORS = {
     OBSTACLE_SQUARE: (220, 38, 38),
@@ -64,6 +65,7 @@ OBSTACLE_COLORS = {
     OBSTACLE_MACHINEGUN: (234, 88, 12),
     OBSTACLE_SHOTGUN: (168, 85, 247),
     OBSTACLE_STEEL_BAR: (120, 130, 150),
+    OBSTACLE_XRAY_GUN: (0, 200, 255),
 }
 
 OBSTACLE_GLOW_COLORS = {
@@ -74,6 +76,7 @@ OBSTACLE_GLOW_COLORS = {
     OBSTACLE_MACHINEGUN: (253, 186, 116),
     OBSTACLE_SHOTGUN: (216, 180, 254),
     OBSTACLE_STEEL_BAR: (180, 190, 210),
+    OBSTACLE_XRAY_GUN: (100, 230, 255),
 }
 
 # Fonts
@@ -336,6 +339,8 @@ class MenuParticle:
 
 
 def create_gradient_surface(width, height, top_color, bottom_color):
+    if height <= 0 or width <= 0:
+        return pygame.Surface((max(width, 1), max(height, 1)))
     gradient = pygame.Surface((width, height))
     for y in range(height):
         ratio = y / height
@@ -823,6 +828,66 @@ def draw_obstacle(obstacle_type, x, y, size, glow_color=None, pulse=0, time_offs
             pygame.draw.circle(screen, (60, 65, 75), (bolt_x, bolt_y), 3)
             pygame.draw.circle(screen, (100, 105, 115), (bolt_x, bolt_y), 2)
 
+    elif obstacle_type == OBSTACLE_XRAY_GUN:
+        cx, cy = x + size // 2, y + size // 2
+        s = size / 40.0
+        pulse_brightness = abs(math.sin(time_offset * 0.15))
+        
+        xray_glow_color = (100, 230, 255)
+        
+        for i in range(3):
+            glow_r = int((12 + i * 6) * s)
+            glow_alpha = int((60 - i * 15) * pulse_brightness + 30)
+            glow_surf = pygame.Surface((glow_r * 2, glow_r * 2), pygame.SRCALPHA)
+            pygame.draw.circle(glow_surf, (*xray_glow_color, glow_alpha), (glow_r, glow_r), glow_r)
+            screen.blit(glow_surf, (cx - glow_r, cy - glow_r))
+        
+        pygame.draw.polygon(screen, color, [
+            (cx, y + int(5 * s)),
+            (cx + int(12 * s), cy),
+            (cx, y + size - int(5 * s)),
+            (cx - int(12 * s), cy)
+        ])
+        
+        inner_color = (150, 230, 255)
+        pygame.draw.polygon(screen, inner_color, [
+            (cx, y + int(10 * s)),
+            (cx + int(6 * s), cy),
+            (cx, y + size - int(10 * s)),
+            (cx - int(6 * s), cy)
+        ])
+        
+        core_brightness = int(180 + 75 * pulse_brightness)
+        pygame.draw.circle(screen, (core_brightness, min(core_brightness + 20, 255), 255), (cx, cy), int(4 * s))
+
+
+def draw_xray_beam(surface, start_x, start_y, orientation, width, height, time_offset):
+    if orientation == "vertical":
+        if start_y <= 0:
+            return
+        beam_width = 20
+        beam_surf = pygame.Surface((beam_width, start_y), pygame.SRCALPHA)
+        for i in range(start_y):
+            alpha = int(150 - (i / start_y) * 80)
+            wave = int(math.sin((i + time_offset * 3) * 0.1) * 3)
+            inner_alpha = int(200 - (i / start_y) * 100)
+            pygame.draw.line(beam_surf, (100, 200, 255, alpha), (0, i), (beam_width, i))
+            pygame.draw.line(beam_surf, (200, 240, 255, inner_alpha), (beam_width // 2 - 3 + wave, i), (beam_width // 2 + 3 + wave, i))
+        surface.blit(beam_surf, (start_x - beam_width // 2, 0))
+    else:
+        beam_length = width - start_x
+        if beam_length <= 0:
+            return
+        beam_height = 15
+        beam_surf = pygame.Surface((beam_length, beam_height), pygame.SRCALPHA)
+        for i in range(beam_length):
+            alpha = int(150 - (i / beam_length) * 80)
+            wave = int(math.sin((i + time_offset * 3) * 0.1) * 2)
+            inner_alpha = int(200 - (i / beam_length) * 100)
+            pygame.draw.line(beam_surf, (100, 200, 255, alpha), (i, 0), (i, beam_height))
+            pygame.draw.line(beam_surf, (200, 240, 255, inner_alpha), (i, beam_height // 2 - 2 + wave), (i, beam_height // 2 + 2 + wave))
+        surface.blit(beam_surf, (start_x, start_y - beam_height // 2))
+
 
 def draw_speed_lines(surface, width, height, orientation, speed, time_offset):
     """Draw faint speed lines that scale with game speed."""
@@ -1144,6 +1209,8 @@ def main():
     MACHINEGUN_DURATION = 10000
     shotgun_timer = 0
     SHOTGUN_DURATION = 10000
+    XRAY_DURATION = 10000
+    xray_timer = 0
     shotgun_cooldown = 0
     bullets = []
     bullet_cooldown = 0
@@ -1192,6 +1259,8 @@ def main():
     boss_attack_interval = 8
     boss_pattern_timer = 0
     boss_current_pattern = 0
+    boss_direction = 1
+    boss_speed = 2
     
     # Boss attack patterns
     BOSS_PATTERNS = ["tight_spread", "wide_spread", "random_scatter", "line"]
@@ -1202,7 +1271,7 @@ def main():
         3: {"blocks": 3, "base_speed": 5, "spawn_rate": 40, "name": "Hard"}
     }
 
-    obstacle_weights = [50, 12, 12, 10, 6, 10]
+    obstacle_weights = [55, 6, 6, 4, 3, 12, 4]
 
     orient_buttons = [
         Button(60, 135, WIDTH // 2 - 80, 35, "Vertical", PRIMARY_COLOR, PRIMARY_HOVER, WHITE, 12),
@@ -1223,6 +1292,7 @@ def main():
 
     start_button = Button(WIDTH // 2 - 100, 460, 200, 55, "PLAY", PRIMARY_COLOR, PRIMARY_HOVER, WHITE, 18)
     scores_menu_button = Button(WIDTH // 2 - 100, 525, 200, 45, "SCORES", WARNING_COLOR, (251, 191, 36), WHITE, 14)
+    help_button = Button(WIDTH // 2 - 50, 575, 100, 22, "? Help", (30, 80, 130), (60, 130, 190), WHITE, 8, font_small)
     restart_button = Button(WIDTH // 2 - 100, 320, 200, 50, "RESTART", PRIMARY_COLOR, PRIMARY_HOVER, WHITE, 14)
     menu_button = Button(WIDTH // 2 - 100, 380, 200, 50, "MENU", (100, 116, 139), (148, 163, 184), WHITE, 14)
     save_score_button = Button(WIDTH // 2 - 100, 440, 200, 50, "SAVE SCORE", SUCCESS_COLOR, (52, 211, 153), WHITE, 14)
@@ -1235,6 +1305,7 @@ def main():
     clock = pygame.time.Clock()
     running = True
     game_state = MENU
+    show_help = False
     time_offset = 0
 
     while running:
@@ -1266,68 +1337,76 @@ def main():
 
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if game_state == MENU:
-                    for i, btn in enumerate(orient_buttons):
-                        if btn.is_clicked():
-                            selected_orientation = "vertical" if i == 0 else "horizontal"
+                    if show_help:
+                        show_help = False
+                    else:
+                        for i, btn in enumerate(orient_buttons):
+                            if btn.is_clicked():
+                                selected_orientation = "vertical" if i == 0 else "horizontal"
 
-                    for i, btn in enumerate(diff_buttons):
-                        if btn.is_clicked():
-                            selected_difficulty = i + 1
+                        for i, btn in enumerate(diff_buttons):
+                            if btn.is_clicked():
+                                selected_difficulty = i + 1
 
-                    roles = ["spaceship", "aeroplane", "dragon"]
-                    for i, btn in enumerate(role_buttons):
-                        if btn.is_clicked():
-                            selected_role = roles[i]
+                        roles = ["spaceship", "aeroplane", "dragon"]
+                        for i, btn in enumerate(role_buttons):
+                            if btn.is_clicked():
+                                selected_role = roles[i]
 
-                    if start_button.is_clicked():
-                        reset_screen(selected_orientation)
-                        parallax.resize(WIDTH, HEIGHT)
-                        _cached_gradients.clear()
-                        _cached_scanlines.clear()
-                        if selected_orientation == "vertical":
-                            player_x = WIDTH // 2
-                            player_y = HEIGHT - 100
-                        else:
-                            player_x = 50
-                            player_y = HEIGHT // 2
-                        obstacles = []
-                        score = 0
-                        start_ticks = pygame.time.get_ticks()
-                        level_start_ticks = pygame.time.get_ticks()
-                        current_level = 1
-                        spawn_timer = 0
-                        current_speed = 0
-                        speed_boost_timer = 0
-                        speed_slow_timer = 0
+                        if help_button.is_clicked():
+                            show_help = True
 
-                        machinegun_timer = 0
-                        shotgun_timer = 0
-                        shotgun_cooldown = 0
-                        bullets = []
-                        bullet_cooldown = 0
-                        player_size = original_player_size
-                        particle_system = ParticleSystem()
-                        player_trail = []
-                        score_popups = []
-                        last_obstacle_count = 0
-                        shake_intensity = 0
-                        game_over_timer = 0
-                        level_obstacles_passed = 0
-                        level_obstacles_destroyed = 0
-                        transition_start_ticks = 0
-                        player_name = ""
-                        boss_active = False
-                        boss_health = 0
-                        boss_projectiles = []
-                        boss_attack_timer = 0
-                        boss_pattern_timer = 0
-                        boss_current_pattern = 0
-                        game_state = PLAYING
+                        if start_button.is_clicked():
+                            reset_screen(selected_orientation)
+                            parallax.resize(WIDTH, HEIGHT)
+                            _cached_gradients.clear()
+                            _cached_scanlines.clear()
+                            if selected_orientation == "vertical":
+                                player_x = WIDTH // 2
+                                player_y = HEIGHT - 100
+                            else:
+                                player_x = 50
+                                player_y = HEIGHT // 2
+                            obstacles = []
+                            score = 0
+                            start_ticks = pygame.time.get_ticks()
+                            level_start_ticks = pygame.time.get_ticks()
+                            current_level = 1
+                            spawn_timer = 0
+                            current_speed = 0
+                            speed_boost_timer = 0
+                            speed_slow_timer = 0
 
-                    if scores_menu_button.is_clicked():
-                        leaderboard_from = MENU
-                        last_saved_score_name = ""
-                        game_state = LEADERBOARD
+                            machinegun_timer = 0
+                            shotgun_timer = 0
+                            xray_timer = 0
+                            shotgun_cooldown = 0
+                            bullets = []
+                            bullet_cooldown = 0
+                            player_size = original_player_size
+                            particle_system = ParticleSystem()
+                            player_trail = []
+                            score_popups = []
+                            last_obstacle_count = 0
+                            shake_intensity = 0
+                            game_over_timer = 0
+                            level_obstacles_passed = 0
+                            level_obstacles_destroyed = 0
+                            transition_start_ticks = 0
+                            player_name = ""
+                            boss_active = False
+                            boss_health = 0
+                            boss_projectiles = []
+                            boss_attack_timer = 0
+                            boss_pattern_timer = 0
+                            boss_current_pattern = 0
+                            boss_direction = 1
+                            game_state = PLAYING
+
+                        if scores_menu_button.is_clicked():
+                            leaderboard_from = MENU
+                            last_saved_score_name = ""
+                            game_state = LEADERBOARD
 
                 elif game_state == GAME_OVER:
                     if restart_button.is_clicked():
@@ -1349,6 +1428,7 @@ def main():
 
                         machinegun_timer = 0
                         shotgun_timer = 0
+                        xray_timer = 0
                         shotgun_cooldown = 0
                         bullets = []
                         bullet_cooldown = 0
@@ -1369,6 +1449,7 @@ def main():
                         boss_attack_timer = 0
                         boss_pattern_timer = 0
                         boss_current_pattern = 0
+                        boss_direction = 1
                         game_state = PLAYING
                     elif menu_button.is_clicked():
                         reset_screen("vertical")
@@ -1458,6 +1539,7 @@ def main():
                         boss_attack_timer = 0
                         boss_pattern_timer = 0
                         boss_current_pattern = 0
+                        boss_direction = 1
                         game_state = PLAYING
 
             if event.type == pygame.KEYDOWN and game_state == ENTER_NAME:
@@ -1480,7 +1562,7 @@ def main():
                         player_name += char
 
         if game_state == MENU:
-            for btn in orient_buttons + diff_buttons + role_buttons + [start_button, scores_menu_button]:
+            for btn in orient_buttons + diff_buttons + role_buttons + [start_button, scores_menu_button, help_button]:
                 btn.update()
 
             # Menu floating particles
@@ -1533,43 +1615,56 @@ def main():
                 draw_player(roles[i], role_colors_list[i], preview_x, preview_y,
                             preview_size, pulse=time_offset * 0.15)
 
-            legend_y = 470
-            legend_x = 55
-
-            draw_obstacle(OBSTACLE_SQUARE, legend_x, legend_y, 24, OBSTACLE_GLOW_COLORS[OBSTACLE_SQUARE], time_offset=time_offset)
-            legend_text = font_small.render("= Game Over", True, (180, 190, 210))
-            screen.blit(legend_text, (legend_x + 30, legend_y + 3))
-
-            draw_obstacle(OBSTACLE_BIRD, legend_x + 140, legend_y, 24, OBSTACLE_GLOW_COLORS[OBSTACLE_BIRD], time_offset=time_offset)
-            legend_text2 = font_small.render("= Speed Up", True, (96, 165, 250))
-            screen.blit(legend_text2, (legend_x + 170, legend_y + 3))
-
-            draw_obstacle(OBSTACLE_TURTLE, legend_x + 280, legend_y, 24, OBSTACLE_GLOW_COLORS[OBSTACLE_TURTLE], time_offset=time_offset)
-            legend_text3 = font_small.render("= Slow", True, (52, 211, 153))
-            screen.blit(legend_text3, (legend_x + 310, legend_y + 3))
-
-            # Gun legend
-            legend_y2 = legend_y + 30
-            draw_obstacle(OBSTACLE_MACHINEGUN, legend_x, legend_y2, 24, OBSTACLE_GLOW_COLORS[OBSTACLE_MACHINEGUN], time_offset=time_offset)
-            legend_text5 = font_small.render("= Gun", True, (255, 160, 80))
-            screen.blit(legend_text5, (legend_x + 30, legend_y2 + 3))
-
-            draw_obstacle(OBSTACLE_SHOTGUN, legend_x + 140, legend_y2, 24, OBSTACLE_GLOW_COLORS[OBSTACLE_SHOTGUN], time_offset=time_offset)
-            legend_text6 = font_small.render("= Shotgun", True, (168, 85, 247))
-            screen.blit(legend_text6, (legend_x + 170, legend_y2 + 3))
-            
-            draw_obstacle(OBSTACLE_STEEL_BAR, legend_x + 280, legend_y2, 60, OBSTACLE_GLOW_COLORS[OBSTACLE_STEEL_BAR], time_offset=time_offset)
-            legend_text7 = font_small.render("= Steel", True, (180, 190, 210))
-            screen.blit(legend_text7, (legend_x + 345, legend_y2 + 3))
-
-            if selected_orientation == "vertical":
-                control_hint = font_small.render("Controls: < > to move", True, (120, 140, 180))
-            else:
-                control_hint = font_small.render("Controls: ^ v to move", True, (120, 140, 180))
-            screen.blit(control_hint, (WIDTH // 2 - control_hint.get_width() // 2, 560))
-
             start_button.draw(screen)
             scores_menu_button.draw(screen)
+            help_button.draw(screen)
+
+            if show_help:
+                overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+                pygame.draw.rect(overlay, (0, 0, 0, 180), (0, 0, WIDTH, HEIGHT))
+                screen.blit(overlay, (0, 0))
+
+                panel_x, panel_y = 25, 80
+                panel_w, panel_h = WIDTH - 50, 420
+                panel_surf = pygame.Surface((panel_w, panel_h), pygame.SRCALPHA)
+                pygame.draw.rect(panel_surf, (10, 15, 35, 230), (0, 0, panel_w, panel_h), border_radius=14)
+                pygame.draw.rect(panel_surf, PRIMARY_COLOR, (0, 0, panel_w, panel_h), 2, border_radius=14)
+                screen.blit(panel_surf, (panel_x, panel_y))
+
+                title_surf = font_header.render("Obstacle Guide", True, WHITE)
+                screen.blit(title_surf, (WIDTH // 2 - title_surf.get_width() // 2, panel_y + 14))
+
+                ox = panel_x + 20
+                oy = panel_y + 55
+                items = [
+                    (OBSTACLE_SQUARE,    24, "Square  — Game Over",   (180, 190, 210)),
+                    (OBSTACLE_BIRD,      24, "Bird    — Speed Up",    (96, 165, 250)),
+                    (OBSTACLE_TURTLE,    24, "Turtle  — Slow Down",   (52, 211, 153)),
+                    (OBSTACLE_MACHINEGUN,24, "Gun     — Machine Gun", (255, 160, 80)),
+                    (OBSTACLE_SHOTGUN,   24, "Shotgun — Spread Fire", (168, 85, 247)),
+                    (OBSTACLE_XRAY_GUN,  24, "X-Ray   — Beam Attack", (100, 230, 255)),
+                ]
+                for obs_type, obs_size, label, color in items:
+                    draw_obstacle(obs_type, ox + obs_size // 2, oy + obs_size // 2, obs_size,
+                                  OBSTACLE_GLOW_COLORS[obs_type], time_offset=time_offset)
+                    screen.blit(font_small.render(label, True, color), (ox + obs_size + 10, oy + 3))
+                    oy += 38
+
+                oy += 6
+                draw_obstacle(OBSTACLE_STEEL_BAR, ox + 30, oy + 12, 60,
+                              OBSTACLE_GLOW_COLORS[OBSTACLE_STEEL_BAR], time_offset=time_offset)
+                screen.blit(font_small.render("Steel Bar — Barrier", True, (180, 190, 210)), (ox + 74, oy + 3))
+                oy += 38
+
+                oy += 8
+                if selected_orientation == "vertical":
+                    ctrl = font_small.render("Controls: Left / Right arrow to move", True, (120, 140, 180))
+                else:
+                    ctrl = font_small.render("Controls: Up / Down arrow to move", True, (120, 140, 180))
+                screen.blit(ctrl, (WIDTH // 2 - ctrl.get_width() // 2, oy))
+
+                close_hint = font_small.render("Click anywhere to close", True, (80, 100, 140))
+                screen.blit(close_hint, (WIDTH // 2 - close_hint.get_width() // 2, panel_y + panel_h - 24))
 
         elif game_state == PLAYING:
             particle_system.update()
@@ -1588,12 +1683,31 @@ def main():
                 boss_attack_timer = 0
                 boss_pattern_timer = 0
                 boss_current_pattern = 0
+                boss_direction = 1
                 if selected_orientation == "vertical":
                     boss_x = (WIDTH - boss_size) // 2
                     boss_y = 120
                 else:
                     boss_x = WIDTH - boss_size - 20
                     boss_y = (HEIGHT - boss_size) // 2
+            
+            if boss_active:
+                if selected_orientation == "vertical":
+                    boss_x += boss_speed * boss_direction
+                    if boss_x <= 0:
+                        boss_x = 0
+                        boss_direction = 1
+                    elif boss_x >= WIDTH - boss_size:
+                        boss_x = WIDTH - boss_size
+                        boss_direction = -1
+                else:
+                    boss_y += boss_speed * boss_direction
+                    if boss_y <= 0:
+                        boss_y = 0
+                        boss_direction = 1
+                    elif boss_y >= HEIGHT - boss_size:
+                        boss_y = HEIGHT - boss_size
+                        boss_direction = -1
             
             # Boss defeated check
             if boss_active and boss_health <= 0:
@@ -1686,7 +1800,7 @@ def main():
                     else:
                         # Normal mode
                         for _ in range(settings["blocks"]):
-                            obs_type = random.choices([OBSTACLE_SQUARE, OBSTACLE_BIRD, OBSTACLE_TURTLE, OBSTACLE_MACHINEGUN, OBSTACLE_SHOTGUN, OBSTACLE_STEEL_BAR], weights=obstacle_weights)[0]
+                            obs_type = random.choices([OBSTACLE_SQUARE, OBSTACLE_BIRD, OBSTACLE_TURTLE, OBSTACLE_MACHINEGUN, OBSTACLE_SHOTGUN, OBSTACLE_STEEL_BAR, OBSTACLE_XRAY_GUN], weights=obstacle_weights)[0]
                             if obs_type == OBSTACLE_SQUARE:
                                 obs_sz = random.choice([30, 40, 50, 60])
                             elif obs_type == OBSTACLE_STEEL_BAR:
@@ -1781,7 +1895,7 @@ def main():
                     else:
                         # Normal mode
                         for _ in range(settings["blocks"]):
-                            obs_type = random.choices([OBSTACLE_SQUARE, OBSTACLE_BIRD, OBSTACLE_TURTLE, OBSTACLE_MACHINEGUN, OBSTACLE_SHOTGUN, OBSTACLE_STEEL_BAR], weights=obstacle_weights)[0]
+                            obs_type = random.choices([OBSTACLE_SQUARE, OBSTACLE_BIRD, OBSTACLE_TURTLE, OBSTACLE_MACHINEGUN, OBSTACLE_SHOTGUN, OBSTACLE_STEEL_BAR, OBSTACLE_XRAY_GUN], weights=obstacle_weights)[0]
                             if obs_type == OBSTACLE_SQUARE:
                                 obs_sz = random.choice([30, 40, 50, 60])
                             elif obs_type == OBSTACLE_STEEL_BAR:
@@ -1858,11 +1972,19 @@ def main():
                         particle_system.emit(center_x, center_y, (255, 100, 30), count=15, size=6, glow=True, spread=4)
                         machinegun_timer = MACHINEGUN_DURATION
                         shotgun_timer = 0
+                        xray_timer = 0
                         obstacles.remove(obstacle)
                     elif obs_type == OBSTACLE_SHOTGUN:
                         particle_system.emit(center_x, center_y, (168, 85, 247), count=15, size=6, glow=True, spread=4)
                         shotgun_timer = SHOTGUN_DURATION
                         machinegun_timer = 0
+                        xray_timer = 0
+                        obstacles.remove(obstacle)
+                    elif obs_type == OBSTACLE_XRAY_GUN:
+                        particle_system.emit(center_x, center_y, (100, 230, 255), count=15, size=6, glow=True, spread=4)
+                        xray_timer = XRAY_DURATION
+                        machinegun_timer = 0
+                        shotgun_timer = 0
                         obstacles.remove(obstacle)
 
             # Boss projectile collision with player
@@ -1909,6 +2031,39 @@ def main():
                             vx = speed * math.cos(angle_rad)
                             vy = speed * math.sin(angle_rad)
                         bullets.append([bcx, bcy, vx, vy])
+
+            # --- X-ray gun logic ---
+            if xray_timer > 0:
+                xray_timer -= dt
+                xray_cx = player_x + size_offset + player_size // 2
+                xray_cy = player_y + size_offset + player_size // 2
+                
+                if selected_orientation == "vertical":
+                    xray_beam_rect = pygame.Rect(xray_cx - 10, 0, 20, xray_cy)
+                else:
+                    xray_beam_rect = pygame.Rect(xray_cx, xray_cy - 7, WIDTH - xray_cx, 14)
+                
+                for obs in obstacles[:]:
+                    obs_type = obs[2]
+                    if obs_type in (OBSTACLE_SQUARE, OBSTACLE_STEEL_BAR):
+                        if obs_type == OBSTACLE_SQUARE:
+                            obs_rect = pygame.Rect(obs[0], obs[1], obs[3], obs[3])
+                        else:
+                            obs_rect = pygame.Rect(obs[0], obs[1], obs[3], 12)
+                        
+                        if xray_beam_rect.colliderect(obs_rect):
+                            level_obstacles_destroyed += 1
+                            cx_hit = obs_rect.centerx
+                            cy_hit = obs_rect.centery
+                            particle_system.emit(cx_hit, cy_hit, (100, 200, 255), count=10, size=5, glow=True, spread=3)
+                            score_popups.append(ScorePopup(cx_hit, cy_hit - 20, "+15", (100, 230, 255)))
+                            obstacles.remove(obs)
+                
+                if boss_active:
+                    boss_rect = pygame.Rect(boss_x, boss_y, boss_size, boss_size)
+                    if xray_beam_rect.colliderect(boss_rect):
+                        boss_health -= 0.5
+                        particle_system.emit(boss_rect.centerx, boss_rect.centery, (100, 230, 255), count=3, size=3, glow=True, spread=2)
 
             # Update bullets
             bullets_to_remove = []
@@ -2007,6 +2162,12 @@ def main():
                 pygame.draw.circle(core_surf, (100, 200, 255, 200), (8, 8), 6)
                 pygame.draw.circle(core_surf, (200, 230, 255, 255), (8, 8), 4)
                 screen.blit(core_surf, (bx - 8, by - 8))
+
+            # Draw X-ray beam
+            if xray_timer > 0:
+                xray_cx = int(player_x + size_offset + player_size // 2)
+                xray_cy = int(player_y + size_offset + player_size // 2)
+                draw_xray_beam(screen, xray_cx, xray_cy, selected_orientation, WIDTH, HEIGHT, time_offset)
 
             # Speed lines
             draw_speed_lines(screen, WIDTH, HEIGHT, selected_orientation, current_speed, time_offset)
@@ -2242,6 +2403,7 @@ def main():
                 boss_attack_timer = 0
                 boss_pattern_timer = 0
                 boss_current_pattern = 0
+                boss_direction = 1
                 game_state = PLAYING
 
         elif game_state == GAME_OVER:
