@@ -54,23 +54,26 @@ OBSTACLE_TURTLE = "turtle"
 OBSTACLE_MUSHROOM = "mushroom"
 OBSTACLE_MACHINEGUN = "machinegun"
 OBSTACLE_SHOTGUN = "shotgun"
+OBSTACLE_STEEL_BAR = "steel_bar"
 
 OBSTACLE_COLORS = {
-    OBSTACLE_SQUARE: (220, 38, 38),       # Hazard red-600
-    OBSTACLE_BIRD: (250, 204, 21),        # Speed Up yellow-400
-    OBSTACLE_TURTLE: (96, 165, 250),      # Slow Down blue-400
-    OBSTACLE_MUSHROOM: (239, 68, 68),     # Shrink red-500
-    OBSTACLE_MACHINEGUN: (234, 88, 12),   # Triple Shot orange-600
-    OBSTACLE_SHOTGUN: (168, 85, 247),     # Shotgun purple
+    OBSTACLE_SQUARE: (220, 38, 38),
+    OBSTACLE_BIRD: (250, 204, 21),
+    OBSTACLE_TURTLE: (96, 165, 250),
+    OBSTACLE_MUSHROOM: (239, 68, 68),
+    OBSTACLE_MACHINEGUN: (234, 88, 12),
+    OBSTACLE_SHOTGUN: (168, 85, 247),
+    OBSTACLE_STEEL_BAR: (120, 130, 150),
 }
 
 OBSTACLE_GLOW_COLORS = {
-    OBSTACLE_SQUARE: (248, 113, 113),     # Hazard red glow
-    OBSTACLE_BIRD: (254, 240, 138),       # Speed Up yellow glow
-    OBSTACLE_TURTLE: (147, 197, 253),     # Slow Down blue glow
-    OBSTACLE_MUSHROOM: (252, 165, 165),   # Shrink red glow
-    OBSTACLE_MACHINEGUN: (253, 186, 116), # Triple Shot orange glow
-    OBSTACLE_SHOTGUN: (216, 180, 254),    # Shotgun purple glow
+    OBSTACLE_SQUARE: (248, 113, 113),
+    OBSTACLE_BIRD: (254, 240, 138),
+    OBSTACLE_TURTLE: (147, 197, 253),
+    OBSTACLE_MUSHROOM: (252, 165, 165),
+    OBSTACLE_MACHINEGUN: (253, 186, 116),
+    OBSTACLE_SHOTGUN: (216, 180, 254),
+    OBSTACLE_STEEL_BAR: (180, 190, 210),
 }
 
 # Fonts
@@ -800,13 +803,25 @@ def draw_obstacle(obstacle_type, x, y, size, glow_color=None, pulse=0, time_offs
             bounce = int(math.sin(time_offset * 0.3 + i * 0.5) * 4)
             by = y + size // 2 - bullet_h // 2 + bounce
             bullet_rect = pygame.Rect(bx, by, bullet_w, bullet_h)
-            # Bullet body (purple)
             pygame.draw.rect(screen, (168, 85, 247), bullet_rect, border_radius=bullet_w)
-            # Top highlight (light purple)
             highlight_rect = pygame.Rect(bx, by, bullet_w, bullet_h // 2)
             pygame.draw.rect(screen, (216, 180, 254), highlight_rect, border_radius=bullet_w)
-            # Border
             pygame.draw.rect(screen, (232, 210, 255), bullet_rect, 1, border_radius=bullet_w)
+
+    elif obstacle_type == OBSTACLE_STEEL_BAR:
+        bar_width = size
+        bar_height = 12
+        bar_rect = pygame.Rect(x, y, bar_width, bar_height)
+        pygame.draw.rect(screen, (80, 85, 95), bar_rect, border_radius=3)
+        pygame.draw.rect(screen, color, (x + 2, y + 2, bar_width - 4, bar_height - 4), border_radius=2)
+        highlight_rect = pygame.Rect(x + 4, y + 3, bar_width - 8, 3)
+        pygame.draw.rect(screen, (180, 190, 200), highlight_rect, border_radius=1)
+        pygame.draw.rect(screen, glow_color, bar_rect, 2, border_radius=3)
+        for i in range(3):
+            bolt_x = x + bar_width // 4 + i * bar_width // 4
+            bolt_y = y + bar_height // 2
+            pygame.draw.circle(screen, (60, 65, 75), (bolt_x, bolt_y), 3)
+            pygame.draw.circle(screen, (100, 105, 115), (bolt_x, bolt_y), 2)
 
 
 def draw_speed_lines(surface, width, height, orientation, speed, time_offset):
@@ -1174,7 +1189,7 @@ def main():
     boss_y = 0
     boss_projectiles = []
     boss_attack_timer = 0
-    boss_attack_interval = 15
+    boss_attack_interval = 8
     boss_pattern_timer = 0
     boss_current_pattern = 0
     
@@ -1187,7 +1202,7 @@ def main():
         3: {"blocks": 3, "base_speed": 5, "spawn_rate": 40, "name": "Hard"}
     }
 
-    obstacle_weights = [60, 12, 12, 10, 6]
+    obstacle_weights = [50, 12, 12, 10, 6, 10]
 
     orient_buttons = [
         Button(60, 135, WIDTH // 2 - 80, 35, "Vertical", PRIMARY_COLOR, PRIMARY_HOVER, WHITE, 12),
@@ -1542,6 +1557,10 @@ def main():
             draw_obstacle(OBSTACLE_SHOTGUN, legend_x + 140, legend_y2, 24, OBSTACLE_GLOW_COLORS[OBSTACLE_SHOTGUN], time_offset=time_offset)
             legend_text6 = font_small.render("= Shotgun", True, (168, 85, 247))
             screen.blit(legend_text6, (legend_x + 170, legend_y2 + 3))
+            
+            draw_obstacle(OBSTACLE_STEEL_BAR, legend_x + 280, legend_y2, 60, OBSTACLE_GLOW_COLORS[OBSTACLE_STEEL_BAR], time_offset=time_offset)
+            legend_text7 = font_small.render("= Steel", True, (180, 190, 210))
+            screen.blit(legend_text7, (legend_x + 345, legend_y2 + 3))
 
             if selected_orientation == "vertical":
                 control_hint = font_small.render("Controls: < > to move", True, (120, 140, 180))
@@ -1619,38 +1638,45 @@ def main():
                         boss_pattern_timer += 1
                         
                         # Change pattern periodically
-                        if boss_pattern_timer >= 300:
+                        if boss_pattern_timer >= 180:
                             boss_pattern_timer = 0
                             boss_current_pattern = random.randint(0, len(BOSS_PATTERNS) - 1)
                         
                         if boss_attack_timer >= boss_attack_interval:
                             boss_attack_timer = 0
-                            proj_size = 25
                             pattern = BOSS_PATTERNS[boss_current_pattern]
                             
+                            num_projectiles = random.randint(3, 6)
+                            
                             if pattern == "tight_spread":
-                                # 3 projectiles with tight spread
-                                offsets = [-40, 0, 40]
-                                for offset in offsets:
-                                    boss_projectiles.append([boss_x + boss_size // 2 - proj_size // 2 + offset, boss_y + boss_size, proj_size, 4])
+                                for i in range(num_projectiles):
+                                    proj_size = random.randint(18, 35)
+                                    speed = random.uniform(3, 7)
+                                    spread_range = 120
+                                    offset = -spread_range // 2 + (spread_range * i // (num_projectiles - 1)) if num_projectiles > 1 else 0
+                                    boss_projectiles.append([boss_x + boss_size // 2 - proj_size // 2 + offset, boss_y + boss_size, proj_size, speed])
                             
                             elif pattern == "wide_spread":
-                                # 3 projectiles with wider gaps
-                                offsets = [-100, 0, 100]
-                                for offset in offsets:
-                                    boss_projectiles.append([boss_x + boss_size // 2 - proj_size // 2 + offset, boss_y + boss_size, proj_size, 4])
+                                for i in range(num_projectiles):
+                                    proj_size = random.randint(18, 35)
+                                    speed = random.uniform(3, 7)
+                                    spread_range = 200
+                                    offset = -spread_range // 2 + (spread_range * i // (num_projectiles - 1)) if num_projectiles > 1 else 0
+                                    boss_projectiles.append([boss_x + boss_size // 2 - proj_size // 2 + offset, boss_y + boss_size, proj_size, speed])
                             
                             elif pattern == "random_scatter":
-                                # 5 random projectiles scattered
-                                for _ in range(5):
-                                    offset = random.randint(-120, 120)
-                                    speed = random.uniform(3, 6)
+                                for _ in range(num_projectiles):
+                                    proj_size = random.randint(18, 35)
+                                    offset = random.randint(-140, 140)
+                                    speed = random.uniform(3, 8)
                                     boss_projectiles.append([boss_x + boss_size // 2 - proj_size // 2 + offset, boss_y + boss_size, proj_size, speed])
                             
                             elif pattern == "line":
-                                # 5 projectiles in a vertical line with slight spacing delay
-                                for i in range(5):
-                                    boss_projectiles.append([boss_x + boss_size // 2 - proj_size // 2, boss_y + boss_size + i * 20, proj_size, 5])
+                                for i in range(num_projectiles):
+                                    proj_size = random.randint(18, 35)
+                                    speed = random.uniform(4, 7)
+                                    offset_x = random.randint(-30, 30)
+                                    boss_projectiles.append([boss_x + boss_size // 2 - proj_size // 2 + offset_x, boss_y + boss_size + i * 25, proj_size, speed])
                         
                         # Occasionally spawn gun power-ups
                         if random.random() < 0.1:
@@ -1660,9 +1686,13 @@ def main():
                     else:
                         # Normal mode
                         for _ in range(settings["blocks"]):
-                            obs_type = random.choices([OBSTACLE_SQUARE, OBSTACLE_BIRD, OBSTACLE_TURTLE, OBSTACLE_MACHINEGUN, OBSTACLE_SHOTGUN], weights=obstacle_weights)[0]
+                            obs_type = random.choices([OBSTACLE_SQUARE, OBSTACLE_BIRD, OBSTACLE_TURTLE, OBSTACLE_MACHINEGUN, OBSTACLE_SHOTGUN, OBSTACLE_STEEL_BAR], weights=obstacle_weights)[0]
                             if obs_type == OBSTACLE_SQUARE:
                                 obs_sz = random.choice([30, 40, 50, 60])
+                            elif obs_type == OBSTACLE_STEEL_BAR:
+                                min_width = WIDTH // 5
+                                max_width = WIDTH // 3
+                                obs_sz = random.randint(min_width, max_width)
                             else:
                                 obs_sz = obstacle_size
                             obstacle_x = random.randint(0, WIDTH - obs_sz)
@@ -1703,38 +1733,45 @@ def main():
                         boss_pattern_timer += 1
                         
                         # Change pattern periodically
-                        if boss_pattern_timer >= 300:
+                        if boss_pattern_timer >= 180:
                             boss_pattern_timer = 0
                             boss_current_pattern = random.randint(0, len(BOSS_PATTERNS) - 1)
                         
                         if boss_attack_timer >= boss_attack_interval:
                             boss_attack_timer = 0
-                            proj_size = 25
                             pattern = BOSS_PATTERNS[boss_current_pattern]
                             
+                            num_projectiles = random.randint(3, 6)
+                            
                             if pattern == "tight_spread":
-                                # 3 projectiles with tight spread
-                                offsets = [-40, 0, 40]
-                                for offset in offsets:
-                                    boss_projectiles.append([boss_x - proj_size, boss_y + boss_size // 2 - proj_size // 2 + offset, proj_size, 4])
+                                for i in range(num_projectiles):
+                                    proj_size = random.randint(18, 35)
+                                    speed = random.uniform(3, 7)
+                                    spread_range = 120
+                                    offset = -spread_range // 2 + (spread_range * i // (num_projectiles - 1)) if num_projectiles > 1 else 0
+                                    boss_projectiles.append([boss_x - proj_size, boss_y + boss_size // 2 - proj_size // 2 + offset, proj_size, speed])
                             
                             elif pattern == "wide_spread":
-                                # 3 projectiles with wider gaps
-                                offsets = [-100, 0, 100]
-                                for offset in offsets:
-                                    boss_projectiles.append([boss_x - proj_size, boss_y + boss_size // 2 - proj_size // 2 + offset, proj_size, 4])
+                                for i in range(num_projectiles):
+                                    proj_size = random.randint(18, 35)
+                                    speed = random.uniform(3, 7)
+                                    spread_range = 200
+                                    offset = -spread_range // 2 + (spread_range * i // (num_projectiles - 1)) if num_projectiles > 1 else 0
+                                    boss_projectiles.append([boss_x - proj_size, boss_y + boss_size // 2 - proj_size // 2 + offset, proj_size, speed])
                             
                             elif pattern == "random_scatter":
-                                # 5 random projectiles scattered
-                                for _ in range(5):
-                                    offset = random.randint(-120, 120)
-                                    speed = random.uniform(3, 6)
+                                for _ in range(num_projectiles):
+                                    proj_size = random.randint(18, 35)
+                                    offset = random.randint(-140, 140)
+                                    speed = random.uniform(3, 8)
                                     boss_projectiles.append([boss_x - proj_size, boss_y + boss_size // 2 - proj_size // 2 + offset, proj_size, speed])
                             
                             elif pattern == "line":
-                                # 5 projectiles in a horizontal line with slight spacing delay
-                                for i in range(5):
-                                    boss_projectiles.append([boss_x - proj_size - i * 20, boss_y + boss_size // 2 - proj_size // 2, proj_size, 5])
+                                for i in range(num_projectiles):
+                                    proj_size = random.randint(18, 35)
+                                    speed = random.uniform(4, 7)
+                                    offset_y = random.randint(-30, 30)
+                                    boss_projectiles.append([boss_x - proj_size - i * 25, boss_y + boss_size // 2 - proj_size // 2 + offset_y, proj_size, speed])
                         
                         # Occasionally spawn gun power-ups
                         if random.random() < 0.1:
@@ -1744,12 +1781,16 @@ def main():
                     else:
                         # Normal mode
                         for _ in range(settings["blocks"]):
-                            obs_type = random.choices([OBSTACLE_SQUARE, OBSTACLE_BIRD, OBSTACLE_TURTLE, OBSTACLE_MACHINEGUN, OBSTACLE_SHOTGUN], weights=obstacle_weights)[0]
+                            obs_type = random.choices([OBSTACLE_SQUARE, OBSTACLE_BIRD, OBSTACLE_TURTLE, OBSTACLE_MACHINEGUN, OBSTACLE_SHOTGUN, OBSTACLE_STEEL_BAR], weights=obstacle_weights)[0]
                             if obs_type == OBSTACLE_SQUARE:
                                 obs_sz = random.choice([30, 40, 50, 60])
+                            elif obs_type == OBSTACLE_STEEL_BAR:
+                                min_width = WIDTH // 5
+                                max_width = WIDTH // 3
+                                obs_sz = random.randint(min_width, max_width)
                             else:
                                 obs_sz = obstacle_size
-                            obstacle_y = random.randint(0, HEIGHT - obs_sz)
+                            obstacle_y = random.randint(0, HEIGHT - 12)
                             obstacles.append([WIDTH, obstacle_y, obs_type, obs_sz])
 
                 prev_count = len(obstacles)
@@ -1783,11 +1824,12 @@ def main():
             for obstacle in obstacles[:]:
                 obs_type = obstacle[2]
                 obs_sz = obstacle[3]
-                # Smaller hitbox for speed up (keep icon full size)
                 if obs_type == OBSTACLE_BIRD:
                     hitbox_inset = obs_sz // 4
                     enemy_rect = pygame.Rect(obstacle[0] + hitbox_inset, obstacle[1] + hitbox_inset,
                                              obs_sz - hitbox_inset * 2, obs_sz - hitbox_inset * 2)
+                elif obs_type == OBSTACLE_STEEL_BAR:
+                    enemy_rect = pygame.Rect(obstacle[0], obstacle[1], obs_sz, 12)
                 else:
                     enemy_rect = pygame.Rect(obstacle[0], obstacle[1], obs_sz, obs_sz)
 
@@ -1795,7 +1837,7 @@ def main():
                     center_x = enemy_rect.centerx
                     center_y = enemy_rect.centery
 
-                    if obs_type == OBSTACLE_SQUARE:
+                    if obs_type == OBSTACLE_SQUARE or obs_type == OBSTACLE_STEEL_BAR:
                         particle_system.emit(center_x, center_y, DANGER_COLOR, count=25, size=8, glow=True, spread=6)
                         shake_intensity = 15.0
                         game_over_timer = 0
