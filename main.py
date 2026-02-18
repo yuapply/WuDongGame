@@ -1212,6 +1212,7 @@ def main():
     obstacle_size = 40
     spawn_timer = 0
     score = 0
+    bonus_score = 0
     start_ticks = 0
     base_speed = 0
     current_speed = 0
@@ -1397,6 +1398,7 @@ def main():
                                 player_y = HEIGHT // 2
                             obstacles = []
                             score = 0
+                            bonus_score = 0
                             start_ticks = pygame.time.get_ticks()
                             level_start_ticks = pygame.time.get_ticks()
                             current_level = 1
@@ -1444,13 +1446,14 @@ def main():
                         else:
                             player_x = 50
                             player_y = HEIGHT // 2
-                        obstacles = []
-                        score = 0
-                        start_ticks = pygame.time.get_ticks()
-                        level_start_ticks = pygame.time.get_ticks()
-                        current_level = 1
-                        spawn_timer = 0
-                        current_speed = 0
+                            obstacles = []
+                            score = 0
+                            bonus_score = 0
+                            start_ticks = pygame.time.get_ticks()
+                            level_start_ticks = pygame.time.get_ticks()
+                            current_level = 1
+                            spawn_timer = 0
+                            current_speed = 0
                         speed_boost_timer = 0
                         speed_slow_timer = 0
 
@@ -1537,6 +1540,7 @@ def main():
                                 player_y = HEIGHT // 2
                             obstacles = []
                             score = 0
+                            bonus_score = 0
                             start_ticks = pygame.time.get_ticks()
                             level_start_ticks = pygame.time.get_ticks()
                             current_level = 1
@@ -2091,6 +2095,7 @@ def main():
                         
                         if xray_beam_rect.colliderect(obs_rect):
                             level_obstacles_destroyed += 1
+                            bonus_score += 15
                             cx_hit = obs_rect.centerx
                             cy_hit = obs_rect.centery
                             particle_system.emit(cx_hit, cy_hit, (100, 200, 255), count=10, size=5, glow=True, spread=3)
@@ -2128,6 +2133,7 @@ def main():
                             bullets_hit.append(b)
                             obs_hit.append(obs)
                             level_obstacles_destroyed += 1
+                            bonus_score += 20
                             cx_hit = obs_rect.centerx
                             cy_hit = obs_rect.centery
                             particle_system.emit(cx_hit, cy_hit, (255, 150, 50), count=12, size=5, glow=True, spread=4)
@@ -2234,7 +2240,7 @@ def main():
             score_popups = [sp for sp in score_popups if sp.is_alive()]
 
             if not boss_active:
-                score = int(elapsed_seconds * 10)
+                score = int(elapsed_seconds * 10) + bonus_score
 
             # --- Dark neon HUD ---
             status_y = 15
