@@ -1294,9 +1294,9 @@ def main():
     BOSS_PATTERNS = ["tight_spread", "wide_spread", "random_scatter", "line"]
 
     difficulty_settings = {
-        1: {"blocks": 1, "base_speed": 3, "spawn_rate": 60, "name": "Easy"},
-        2: {"blocks": 2, "base_speed": 4, "spawn_rate": 50, "name": "Medium"},
-        3: {"blocks": 3, "base_speed": 5, "spawn_rate": 40, "name": "Hard"}
+        1: {"blocks": 1, "base_speed": 3, "spawn_rate": 60, "name": "Easy", "steel_bar_weight": 12},
+        2: {"blocks": 2, "base_speed": 4, "spawn_rate": 50, "name": "Medium", "steel_bar_weight": 8},
+        3: {"blocks": 3, "base_speed": 5, "spawn_rate": 40, "name": "Hard", "steel_bar_weight": 4}
     }
 
     obstacle_weights = [55, 6, 6, 4, 3, 12, 4]
@@ -1828,7 +1828,9 @@ def main():
                     else:
                         # Normal mode
                         for _ in range(settings["blocks"]):
-                            obs_type = random.choices([OBSTACLE_SQUARE, OBSTACLE_BIRD, OBSTACLE_TURTLE, OBSTACLE_MACHINEGUN, OBSTACLE_SHOTGUN, OBSTACLE_STEEL_BAR, OBSTACLE_XRAY_GUN], weights=obstacle_weights)[0]
+                            current_weights = obstacle_weights.copy()
+                            current_weights[5] = settings["steel_bar_weight"]
+                            obs_type = random.choices([OBSTACLE_SQUARE, OBSTACLE_BIRD, OBSTACLE_TURTLE, OBSTACLE_MACHINEGUN, OBSTACLE_SHOTGUN, OBSTACLE_STEEL_BAR, OBSTACLE_XRAY_GUN], weights=current_weights)[0]
                             if obs_type == OBSTACLE_SQUARE:
                                 obs_sz = random.choice([30, 40, 50, 60])
                             elif obs_type == OBSTACLE_STEEL_BAR:
@@ -1923,7 +1925,9 @@ def main():
                     else:
                         # Normal mode
                         for _ in range(settings["blocks"]):
-                            obs_type = random.choices([OBSTACLE_SQUARE, OBSTACLE_BIRD, OBSTACLE_TURTLE, OBSTACLE_MACHINEGUN, OBSTACLE_SHOTGUN, OBSTACLE_STEEL_BAR, OBSTACLE_XRAY_GUN], weights=obstacle_weights)[0]
+                            current_weights = obstacle_weights.copy()
+                            current_weights[5] = settings["steel_bar_weight"]
+                            obs_type = random.choices([OBSTACLE_SQUARE, OBSTACLE_BIRD, OBSTACLE_TURTLE, OBSTACLE_MACHINEGUN, OBSTACLE_SHOTGUN, OBSTACLE_STEEL_BAR, OBSTACLE_XRAY_GUN], weights=current_weights)[0]
                             if obs_type == OBSTACLE_SQUARE:
                                 obs_sz = random.choice([30, 40, 50, 60])
                             elif obs_type == OBSTACLE_STEEL_BAR:
