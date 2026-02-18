@@ -1,0 +1,78 @@
+# --- Screen Sizes ---
+VERTICAL = (400, 600)
+HORIZONTAL = (800, 500)
+
+# --- Dark Neon Color Palette ---
+BG_TOP = (8, 8, 20)
+BG_BOTTOM = (15, 20, 40)
+BG_TOP_GAME = (8, 8, 20)
+BG_BOTTOM_GAME = (10, 15, 35)
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+GRAY = (60, 60, 80)
+DARK_GRAY = (200, 200, 220)
+LIGHT_GRAY = (30, 30, 50)
+
+PRIMARY_COLOR = (99, 102, 241)
+PRIMARY_HOVER = (129, 140, 248)
+PRIMARY_GLOW = (139, 92, 246)
+SUCCESS_COLOR = (16, 185, 129)
+WARNING_COLOR = (245, 158, 11)
+DANGER_COLOR = (239, 68, 68)
+
+NEON_CYAN = (0, 255, 255)
+NEON_PINK = (255, 0, 200)
+NEON_BLUE = (80, 120, 255)
+
+PLAYER_COLORS = {
+    "spaceship": (99, 102, 241),
+    "aeroplane": (16, 185, 129),
+    "dragon": (245, 158, 11)
+}
+
+PLAYER_GLOW_COLORS = {
+    "spaceship": (167, 139, 250),
+    "aeroplane": (52, 211, 153),
+    "dragon": (251, 191, 36)
+}
+
+# --- Obstacle Types ---
+OBSTACLE_SQUARE = "square"
+OBSTACLE_BIRD = "bird"
+OBSTACLE_TURTLE = "turtle"
+OBSTACLE_MUSHROOM = "mushroom"
+OBSTACLE_MACHINEGUN = "machinegun"
+OBSTACLE_SHOTGUN = "shotgun"
+OBSTACLE_STEEL_BAR = "steel_bar"
+OBSTACLE_XRAY_GUN = "xray_gun"
+
+OBSTACLE_COLORS = {
+    OBSTACLE_SQUARE: (220, 38, 38),
+    OBSTACLE_BIRD: (250, 204, 21),
+    OBSTACLE_TURTLE: (96, 165, 250),
+    OBSTACLE_MUSHROOM: (239, 68, 68),
+    OBSTACLE_MACHINEGUN: (234, 88, 12),
+    OBSTACLE_SHOTGUN: (168, 85, 247),
+    OBSTACLE_STEEL_BAR: (120, 130, 150),
+    OBSTACLE_XRAY_GUN: (0, 200, 255),
+}
+
+OBSTACLE_GLOW_COLORS = {
+    OBSTACLE_SQUARE: (248, 113, 113),
+    OBSTACLE_BIRD: (254, 240, 138),
+    OBSTACLE_TURTLE: (147, 197, 253),
+    OBSTACLE_MUSHROOM: (252, 165, 165),
+    OBSTACLE_MACHINEGUN: (253, 186, 116),
+    OBSTACLE_SHOTGUN: (216, 180, 254),
+    OBSTACLE_STEEL_BAR: (180, 190, 210),
+    OBSTACLE_XRAY_GUN: (100, 230, 255),
+}
+
+# --- Game States ---
+MENU = "menu"
+PLAYING = "playing"
+GAME_OVER = "game_over"
+ENTER_NAME = "enter_name"
+LEADERBOARD = "leaderboard"
+LEVEL_TRANSITION = "level_transition"
+BOSS_DEFEATED = "boss_defeated"
