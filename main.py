@@ -610,6 +610,10 @@ def main():
                     player_x -= 5
                 if keys[pygame.K_RIGHT] and player_x < WIDTH - player_size:
                     player_x += 5
+                if keys[pygame.K_UP] and player_y > 0:
+                    player_y -= 5
+                if keys[pygame.K_DOWN] and player_y < HEIGHT - player_size:
+                    player_y += 5
 
                 spawn_timer += 1
                 if spawn_timer >= spawn_interval:
@@ -634,7 +638,8 @@ def main():
                                     speed = random.uniform(3, 7)
                                     spread_range = 120
                                     offset = -spread_range // 2 + (spread_range * i // (num_projectiles - 1)) if num_projectiles > 1 else 0
-                                    boss_projectiles.append([boss_x + boss_size // 2 - proj_size // 2 + offset, boss_y + boss_size, proj_size, speed])
+                                    indestructible = random.random() < 0.25
+                                    boss_projectiles.append([boss_x + boss_size // 2 - proj_size // 2 + offset, boss_y + boss_size, proj_size, speed, indestructible])
 
                             elif pattern == "wide_spread":
                                 for i in range(num_projectiles):
@@ -642,21 +647,24 @@ def main():
                                     speed = random.uniform(3, 7)
                                     spread_range = 200
                                     offset = -spread_range // 2 + (spread_range * i // (num_projectiles - 1)) if num_projectiles > 1 else 0
-                                    boss_projectiles.append([boss_x + boss_size // 2 - proj_size // 2 + offset, boss_y + boss_size, proj_size, speed])
+                                    indestructible = random.random() < 0.25
+                                    boss_projectiles.append([boss_x + boss_size // 2 - proj_size // 2 + offset, boss_y + boss_size, proj_size, speed, indestructible])
 
                             elif pattern == "random_scatter":
                                 for _ in range(num_projectiles):
                                     proj_size = random.randint(18, 35)
                                     offset = random.randint(-140, 140)
                                     speed = random.uniform(3, 8)
-                                    boss_projectiles.append([boss_x + boss_size // 2 - proj_size // 2 + offset, boss_y + boss_size, proj_size, speed])
+                                    indestructible = random.random() < 0.25
+                                    boss_projectiles.append([boss_x + boss_size // 2 - proj_size // 2 + offset, boss_y + boss_size, proj_size, speed, indestructible])
 
                             elif pattern == "line":
                                 for i in range(num_projectiles):
                                     proj_size = random.randint(18, 35)
                                     speed = random.uniform(4, 7)
                                     offset_x = random.randint(-30, 30)
-                                    boss_projectiles.append([boss_x + boss_size // 2 - proj_size // 2 + offset_x, boss_y + boss_size + i * 25, proj_size, speed])
+                                    indestructible = random.random() < 0.25
+                                    boss_projectiles.append([boss_x + boss_size // 2 - proj_size // 2 + offset_x, boss_y + boss_size + i * 25, proj_size, speed, indestructible])
 
                         # Occasionally spawn gun power-ups
                         if random.random() < 0.1:
@@ -729,7 +737,8 @@ def main():
                                     speed = random.uniform(3, 7)
                                     spread_range = 120
                                     offset = -spread_range // 2 + (spread_range * i // (num_projectiles - 1)) if num_projectiles > 1 else 0
-                                    boss_projectiles.append([boss_x - proj_size, boss_y + boss_size // 2 - proj_size // 2 + offset, proj_size, speed])
+                                    indestructible = random.random() < 0.25
+                                    boss_projectiles.append([boss_x - proj_size, boss_y + boss_size // 2 - proj_size // 2 + offset, proj_size, speed, indestructible])
 
                             elif pattern == "wide_spread":
                                 for i in range(num_projectiles):
@@ -737,21 +746,24 @@ def main():
                                     speed = random.uniform(3, 7)
                                     spread_range = 200
                                     offset = -spread_range // 2 + (spread_range * i // (num_projectiles - 1)) if num_projectiles > 1 else 0
-                                    boss_projectiles.append([boss_x - proj_size, boss_y + boss_size // 2 - proj_size // 2 + offset, proj_size, speed])
+                                    indestructible = random.random() < 0.25
+                                    boss_projectiles.append([boss_x - proj_size, boss_y + boss_size // 2 - proj_size // 2 + offset, proj_size, speed, indestructible])
 
                             elif pattern == "random_scatter":
                                 for _ in range(num_projectiles):
                                     proj_size = random.randint(18, 35)
                                     offset = random.randint(-140, 140)
                                     speed = random.uniform(3, 8)
-                                    boss_projectiles.append([boss_x - proj_size, boss_y + boss_size // 2 - proj_size // 2 + offset, proj_size, speed])
+                                    indestructible = random.random() < 0.25
+                                    boss_projectiles.append([boss_x - proj_size, boss_y + boss_size // 2 - proj_size // 2 + offset, proj_size, speed, indestructible])
 
                             elif pattern == "line":
                                 for i in range(num_projectiles):
                                     proj_size = random.randint(18, 35)
                                     speed = random.uniform(4, 7)
                                     offset_y = random.randint(-30, 30)
-                                    boss_projectiles.append([boss_x - proj_size - i * 25, boss_y + boss_size // 2 - proj_size // 2 + offset_y, proj_size, speed])
+                                    indestructible = random.random() < 0.25
+                                    boss_projectiles.append([boss_x - proj_size - i * 25, boss_y + boss_size // 2 - proj_size // 2 + offset_y, proj_size, speed, indestructible])
 
                         # Occasionally spawn gun power-ups
                         if random.random() < 0.1:
@@ -978,6 +990,8 @@ def main():
                 for b in bullets[:]:
                     bullet_rect = pygame.Rect(b[0] - 4, b[1] - 4, 8, 8)
                     for proj in boss_projectiles[:]:
+                        if len(proj) > 4 and proj[4]:
+                            continue
                         proj_rect = pygame.Rect(proj[0], proj[1], proj[2], proj[2])
                         if bullet_rect.colliderect(proj_rect):
                             if b in bullets:
@@ -1050,7 +1064,8 @@ def main():
             if boss_active:
                 draw_boss(boss_x + shake_offset_x, boss_y + shake_offset_y, boss_size, boss_health, boss_max_health, time_offset, current_level)
                 for proj in boss_projectiles:
-                    draw_boss_projectile(int(proj[0] + shake_offset_x), int(proj[1] + shake_offset_y), proj[2], time_offset, current_level)
+                    indestructible = len(proj) > 4 and proj[4]
+                    draw_boss_projectile(int(proj[0] + shake_offset_x), int(proj[1] + shake_offset_y), proj[2], time_offset, current_level, indestructible)
                 draw_boss_health_bar(10, 60, WIDTH - 20, 35, boss_health, boss_max_health, current_level)
 
             particle_system.draw(screen)

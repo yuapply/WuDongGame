@@ -564,7 +564,7 @@ def draw_boss(x, y, size, health, max_health, time_offset, level=1):
         pygame.draw.circle(screen, (255, 255, 255), (cx, cy), int(15 * s + pulse * 10 * s))
 
 
-def draw_boss_projectile(x, y, size, time_offset, level=1):
+def draw_boss_projectile(x, y, size, time_offset, level=1, indestructible=False):
     """Draw boss projectile (circle block)."""
     screen = game_globals.screen
     boss_configs = {
@@ -584,6 +584,10 @@ def draw_boss_projectile(x, y, size, time_offset, level=1):
     color = config["color"]
     glow_color = config["glow"]
 
+    if indestructible:
+        glow_color = (255, 255, 255)
+        color = (255, 100, 100)
+
     pulse = 2 + math.sin(time_offset * 0.2) * 1
     gs = pygame.Surface((size + pulse * 4, size + pulse * 4), pygame.SRCALPHA)
     pygame.draw.circle(gs, (*glow_color, 80), (size // 2 + pulse * 2, size // 2 + pulse * 2), size // 2 + pulse)
@@ -593,6 +597,9 @@ def draw_boss_projectile(x, y, size, time_offset, level=1):
 
     inner_color = tuple(max(0, c - 50) for c in color)
     pygame.draw.circle(screen, inner_color, (x + size // 2, y + size // 2), size // 3)
+
+    if indestructible:
+        pygame.draw.circle(screen, (255, 255, 255), (x + size // 2, y + size // 2), size // 2, 2)
 
 
 def draw_boss_health_bar(x, y, width, height, health, max_health, level=1):
