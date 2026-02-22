@@ -10,7 +10,7 @@ from constants import (
     OBSTACLE_SQUARE, OBSTACLE_BIRD, OBSTACLE_TURTLE, OBSTACLE_MUSHROOM,
     OBSTACLE_MACHINEGUN, OBSTACLE_SHOTGUN, OBSTACLE_STEEL_BAR, OBSTACLE_XRAY_GUN,
     OBSTACLE_COLORS, OBSTACLE_GLOW_COLORS,
-    MENU, PLAYING, GAME_OVER, ENTER_NAME, LEADERBOARD, LEVEL_TRANSITION, BOSS_DEFEATED,
+    MENU, PLAYING, GAME_OVER, ENTER_NAME, LEADERBOARD, LEVEL_TRANSITION, BOSS_DEFEATED, RESPAWN,
 )
 from scores import load_scores, save_scores, is_high_score
 from cache import get_cached_gradient, get_scanline_overlay, clear_caches
@@ -45,6 +45,8 @@ def main():
     spawn_timer = 0
     score = 0
     bonus_score = 0
+    lives = 3
+    last_life_milestone = 0
     start_ticks = 0
     base_speed = 0
     current_speed = 0
@@ -90,6 +92,10 @@ def main():
     # Game over animation
     game_over_timer = 0
     GAME_OVER_ANIM_FRAMES = 20
+
+    # Respawn countdown
+    respawn_start_ticks = 0
+    RESPAWN_DURATION = 3000
 
     # Leaderboard state
     player_name = ""
@@ -233,6 +239,8 @@ def main():
                             obstacles = []
                             score = 0
                             bonus_score = 0
+                            lives = 3
+                            last_life_milestone = 0
                             start_ticks = pygame.time.get_ticks()
                             level_start_ticks = pygame.time.get_ticks()
                             current_level = 1
@@ -283,6 +291,8 @@ def main():
                             obstacles = []
                             score = 0
                             bonus_score = 0
+                            lives = 3
+                            last_life_milestone = 0
                             start_ticks = pygame.time.get_ticks()
                             level_start_ticks = pygame.time.get_ticks()
                             current_level = 1
@@ -379,6 +389,8 @@ def main():
                             obstacles = []
                             score = 0
                             bonus_score = 0
+                            lives = 3
+                            last_life_milestone = 0
                             start_ticks = pygame.time.get_ticks()
                             level_start_ticks = pygame.time.get_ticks()
                             current_level = 1
@@ -836,10 +848,21 @@ def main():
 
                     if obs_type == OBSTACLE_SQUARE or obs_type == OBSTACLE_STEEL_BAR:
                         particle_system.emit(center_x, center_y, DANGER_COLOR, count=25, size=8, glow=True, spread=6)
+                        player_cx = player_x + size_offset + player_size // 2
+                        player_cy = player_y + size_offset + player_size // 2
+                        particle_system.emit(player_cx, player_cy, (255, 100, 50), count=40, size=10, glow=True, spread=8)
+                        particle_system.emit(player_cx, player_cy, (255, 200, 100), count=30, size=6, glow=True, spread=5)
+                        particle_system.emit(player_cx, player_cy, (255, 255, 200), count=20, size=4, glow=True, spread=3)
                         shake_intensity = 15.0
-                        game_over_timer = 0
-                        qualifies_for_leaderboard = is_high_score(score)
-                        game_state = GAME_OVER
+                        obstacles.remove(obstacle)
+                        lives -= 1
+                        if lives <= 0:
+                            game_over_timer = 0
+                            qualifies_for_leaderboard = is_high_score(score)
+                            game_state = GAME_OVER
+                        else:
+                            respawn_start_ticks = pygame.time.get_ticks()
+                            game_state = RESPAWN
                         break
                     elif obs_type == OBSTACLE_BIRD:
                         particle_system.emit(center_x, center_y, (59, 130, 246), count=15, size=6, glow=True, spread=4)
@@ -875,10 +898,21 @@ def main():
                 proj_rect = pygame.Rect(proj[0], proj[1], proj[2], proj[2])
                 if player_rect.colliderect(proj_rect):
                     particle_system.emit(proj_rect.centerx, proj_rect.centery, DANGER_COLOR, count=20, size=6, glow=True, spread=5)
+                    player_cx = player_x + size_offset + player_size // 2
+                    player_cy = player_y + size_offset + player_size // 2
+                    particle_system.emit(player_cx, player_cy, (255, 100, 50), count=40, size=10, glow=True, spread=8)
+                    particle_system.emit(player_cx, player_cy, (255, 200, 100), count=30, size=6, glow=True, spread=5)
+                    particle_system.emit(player_cx, player_cy, (255, 255, 200), count=20, size=4, glow=True, spread=3)
                     shake_intensity = 10.0
-                    game_over_timer = 0
-                    qualifies_for_leaderboard = is_high_score(score)
-                    game_state = GAME_OVER
+                    boss_projectiles.remove(proj)
+                    lives -= 1
+                    if lives <= 0:
+                        game_over_timer = 0
+                        qualifies_for_leaderboard = is_high_score(score)
+                        game_state = GAME_OVER
+                    else:
+                        respawn_start_ticks = pygame.time.get_ticks()
+                        game_state = RESPAWN
                     break
 
             # --- Machinegun bullet logic ---
@@ -1079,6 +1113,11 @@ def main():
             if not boss_active:
                 score = int(elapsed_seconds * 10) + bonus_score
 
+            if score >= last_life_milestone + 10000:
+                lives += 1
+                last_life_milestone = score
+                score_popups.append(ScorePopup(player_x, player_y - 50, "+1 LIFE!", color=(255, 100, 150)))
+
             # --- Dark neon HUD ---
             status_y = 15
 
@@ -1115,6 +1154,59 @@ def main():
             timer_color = (120, 240, 160) if level_time_left > 10 else (255, 150, 150)
             timer_text = font_normal.render(f"{int(level_time_left)}s", True, timer_color)
             screen.blit(timer_text, (360, status_y + 7))
+
+            lives_bg = pygame.Surface((90, 35), pygame.SRCALPHA)
+            pygame.draw.rect(lives_bg, (10, 10, 25, 180), lives_bg.get_rect(), border_radius=10)
+            pygame.draw.rect(lives_bg, (*DANGER_COLOR, 100), lives_bg.get_rect(), 1, border_radius=10)
+            screen.blit(lives_bg, (470, status_y + 2))
+
+            lives_text = font_normal.render(f"LIVES {lives}", True, (255, 120, 120))
+            screen.blit(lives_text, (480, status_y + 7))
+
+        elif game_state == RESPAWN:
+            particle_system.update()
+
+            respawn_elapsed = pygame.time.get_ticks() - respawn_start_ticks
+            time_left = max(0, (RESPAWN_DURATION - respawn_elapsed) / 1000)
+
+            parallax.draw(screen, selected_orientation)
+
+            for obstacle in obstacles:
+                draw_obstacle(obstacle[2], int(obstacle[0]), int(obstacle[1]), obstacle[3], OBSTACLE_GLOW_COLORS[obstacle[2]], time_offset * 0.1, time_offset, selected_orientation)
+
+            particle_system.draw(screen)
+
+            overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 150))
+            screen.blit(overlay, (0, 0))
+
+            panel_w, panel_h = 300, 200
+            panel_rect = pygame.Rect(WIDTH // 2 - panel_w // 2, HEIGHT // 2 - panel_h // 2, panel_w, panel_h)
+
+            panel_surface = pygame.Surface((panel_w, panel_h), pygame.SRCALPHA)
+            pygame.draw.rect(panel_surface, (10, 10, 25, 230), panel_surface.get_rect(), border_radius=24)
+            screen.blit(panel_surface, (panel_rect.x, panel_rect.y))
+
+            pygame.draw.rect(screen, DANGER_COLOR, panel_rect, 2, border_radius=24)
+            draw_glow(screen, DANGER_COLOR, panel_rect, 20, 25)
+
+            lives_label = font_header.render("LIVES REMAINING", True, DANGER_COLOR)
+            screen.blit(lives_label, (WIDTH // 2 - lives_label.get_width() // 2, panel_rect.y + 30))
+
+            lives_num = font_title.render(str(lives), True, (255, 200, 200))
+            screen.blit(lives_num, (WIDTH // 2 - lives_num.get_width() // 2, panel_rect.y + 70))
+
+            countdown_text = font_header.render(f"RESUMING IN {int(time_left) + 1}...", True, (200, 200, 220))
+            screen.blit(countdown_text, (WIDTH // 2 - countdown_text.get_width() // 2, panel_rect.y + 140))
+
+            if respawn_elapsed >= RESPAWN_DURATION:
+                if selected_orientation == "vertical":
+                    player_x = WIDTH // 2
+                    player_y = HEIGHT - 100
+                else:
+                    player_x = 50
+                    player_y = HEIGHT // 2
+                game_state = PLAYING
 
         elif game_state == LEVEL_TRANSITION:
             particle_system.update()
